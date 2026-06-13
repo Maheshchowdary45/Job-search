@@ -432,6 +432,33 @@
     .content { padding: 16px; }
   }
 
+  /* PROMPT PANEL */
+  .prompt-panel {
+    position: fixed; bottom: 0; left: 240px; right: 0;
+    background: var(--surface);
+    border-top: 2px solid var(--accent);
+    box-shadow: 0 -8px 32px rgba(0,0,0,0.12);
+    z-index: 30;
+    max-height: 65vh; overflow-y: auto;
+    transform: translateY(100%);
+    transition: transform 0.35s cubic-bezier(.34,1.1,.64,1);
+  }
+  .prompt-panel.open { transform: translateY(0); }
+  .prompt-panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 24px;
+    background: var(--accent-light);
+    border-bottom: 1px solid rgba(91,79,255,0.15);
+    position: sticky; top: 0; z-index: 1;
+  }
+  .prompt-panel-body { padding: 20px 24px 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .pp-step-label { font-size: 12.5px; font-weight: 600; color: var(--ink-2); margin-bottom: 8px; display:flex;align-items:center;gap:6px; }
+  .pp-step-num { width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+  @media (max-width: 700px) {
+    .prompt-panel { left: 0; }
+    .prompt-panel-body { grid-template-columns: 1fr; }
+  }
+
   /* scrollbar */
   ::-webkit-scrollbar { width: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -547,6 +574,23 @@
             <span style="font-size:13px;color:var(--ink-3)">No roles set — update your profile</span>
           </div>
         </div>
+
+        <div class="card" style="background:var(--accent-light);border-color:rgba(91,79,255,0.2)">
+          <div style="display:flex;align-items:flex-start;gap:14px">
+            <div style="font-size:22px;flex-shrink:0">💡</div>
+            <div>
+              <div class="card-title" style="color:var(--accent);margin-bottom:6px">How to use with Claude.ai</div>
+              <div style="font-size:13px;color:var(--ink-2);line-height:1.7">
+                <b>1.</b> Fill in your profile and upload your resume (PDF works!)<br>
+                <b>2.</b> Click any AI button — a ready-made prompt will appear<br>
+                <b>3.</b> Copy the prompt and paste it into Claude chat<br>
+                <b>4.</b> Paste Claude's response back into the result box<br>
+                <br>
+                <span style="color:var(--ink-3);font-size:12px">No API key needed — just a Claude.ai Pro/Team subscription</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- PROFILE -->
@@ -596,6 +640,13 @@
           <div class="form-group">
             <label>Or paste resume text directly</label>
             <textarea id="p-resume" rows="8" placeholder="Paste your full resume here..."></textarea>
+          </div>
+
+          <div style="margin-bottom:14px">
+            <button class="btn btn-secondary" onclick="suggestRoles()" style="width:100%">
+              <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              Analyze my resume → suggest roles I should apply to
+            </button>
           </div>
 
           <div class="section-divider">Job targeting</div>
@@ -671,6 +722,7 @@
             </div>
             <div style="display:flex;gap:8px">
               <button class="btn btn-sm btn-secondary" onclick="copyText('tailor-output')">Copy</button>
+              <button class="btn btn-sm btn-secondary" onclick="setAsBaseResume()">Set as base resume</button>
               <button class="btn btn-sm btn-primary" onclick="saveApplication()">Save application</button>
             </div>
           </div>
@@ -781,17 +833,47 @@
   </div>
 </div>
 
+<!-- PROMPT PANEL -->
+<div class="prompt-panel" id="prompt-panel">
+  <div class="prompt-panel-header">
+    <div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:15px;color:var(--accent)" id="pp-title">Send to Claude</div>
+      <div style="font-size:12px;color:var(--ink-3);margin-top:2px">Copy → paste in Claude chat → paste Claude's reply back below</div>
+    </div>
+    <button class="btn btn-sm btn-secondary" onclick="closePromptPanel()">✕ Close</button>
+  </div>
+  <div class="prompt-panel-body">
+    <div>
+      <div class="pp-step-label"><span class="pp-step-num">1</span>Copy this prompt and paste it in Claude chat</div>
+      <div class="result-box" id="pp-prompt" style="max-height:220px;font-size:12.5px"></div>
+      <div class="btn-row" style="margin-top:10px">
+        <button class="btn btn-primary" onclick="copyPromptText()">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copy prompt
+        </button>
+      </div>
+    </div>
+    <div>
+      <div class="pp-step-label"><span class="pp-step-num">2</span>Paste Claude's response here and apply it</div>
+      <textarea id="pp-result" rows="9" placeholder="Paste Claude's full response here..." style="width:100%;font-size:13px"></textarea>
+      <div class="btn-row" style="margin-top:10px">
+        <button class="btn btn-success" id="pp-apply-btn" onclick="applyPromptResult()">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          Apply result
+        </button>
+        <button class="btn btn-secondary" onclick="closePromptPanel()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
 <script>
-const API = "https://api.anthropic.com/v1/messages";
-const GMAIL_MCP = "https://gmailmcp.googleapis.com/mcp/v1";
-
 // State
 let state = {
   agentRunning: false,
-  agentInterval: null,
   roles: [],
   emailsSent: 0,
   emailsScanned: 0,
@@ -800,8 +882,41 @@ let state = {
   applications: [],
   currentReply: null,
   tailoredResume: null,
-  draftedEmail: null
+  draftedEmail: null,
+  resumePDFBase64: null,
+  resumePDFName: null
 };
+
+// PROMPT PANEL — the core mechanism for all AI features
+let _promptCallback = null;
+function showPromptPanel(title, prompt, onResult) {
+  _promptCallback = onResult;
+  document.getElementById('pp-title').textContent = title;
+  document.getElementById('pp-prompt').textContent = prompt;
+  document.getElementById('pp-result').value = '';
+  document.getElementById('prompt-panel').classList.add('open');
+  setTimeout(() => document.getElementById('pp-result').focus(), 400);
+}
+function closePromptPanel() {
+  document.getElementById('prompt-panel').classList.remove('open');
+  _promptCallback = null;
+}
+function copyPromptText() {
+  const text = document.getElementById('pp-prompt').textContent;
+  navigator.clipboard.writeText(text).then(() => showToast('Prompt copied! Paste it in Claude chat.', 'success'));
+}
+function applyPromptResult() {
+  const result = document.getElementById('pp-result').value.trim();
+  if (!result) { showToast('Paste Claude\'s response first', 'error'); return; }
+  if (_promptCallback) _promptCallback(result);
+  closePromptPanel();
+}
+
+function resumeBlock() {
+  const p = getProfile();
+  if (state.resumePDFBase64) return `[Resume: PDF file "${state.resumePDFName}" — upload it to Claude.ai so Claude can read it, or paste text below]\n${p.resume ? 'RESUME TEXT (fallback):\n' + p.resume : ''}`;
+  return `MY RESUME:\n${p.resume || '(no resume provided — add it in My Profile)'}`;
+}
 
 // Load saved state
 function loadState() {
@@ -830,6 +945,15 @@ function loadState() {
       if (p.resume) document.getElementById('p-resume').value = p.resume;
       if (p.linkedin) document.getElementById('p-linkedin').value = p.linkedin;
       if (p.location) document.getElementById('p-location').value = p.location;
+    } catch(e) {}
+  }
+  const savedPDF = localStorage.getItem('jobpilot_pdf');
+  if (savedPDF) {
+    try {
+      const pdfObj = JSON.parse(savedPDF);
+      state.resumePDFBase64 = pdfObj.data;
+      state.resumePDFName = pdfObj.name;
+      document.getElementById('upload-content').innerHTML = `<div class="upload-done"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>${pdfObj.name} ready</div>`;
     } catch(e) {}
   }
   state.roles.forEach(r => addTagEl(r));
@@ -896,18 +1020,45 @@ function updateTopbar() {
 function handleFileUpload(event) {
   const file = event.target.files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const text = e.target.result;
-    document.getElementById('p-resume').value = text;
-    document.getElementById('upload-content').innerHTML = `
-      <div class="upload-done">
-        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-        ${file.name} uploaded — text extracted below
-      </div>`;
-  };
-  reader.onerror = () => showToast('Could not read file. Try pasting text directly.', 'error');
-  reader.readAsText(file);
+
+  if (file.type === 'application/pdf') {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const bytes = new Uint8Array(e.target.result);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+      const base64 = btoa(binary);
+      state.resumePDFBase64 = base64;
+      state.resumePDFName = file.name;
+      try { localStorage.setItem('jobpilot_pdf', JSON.stringify({ data: base64, name: file.name })); } catch(e) {}
+      document.getElementById('p-resume').value = '';
+      document.getElementById('p-resume').placeholder = 'PDF uploaded — Claude will read it directly. You can also paste text here as a fallback.';
+      document.getElementById('upload-content').innerHTML = `
+        <div class="upload-done">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          ${file.name} ready — PDF will be sent directly to Claude
+        </div>`;
+      showToast('PDF loaded!', 'success');
+    };
+    reader.onerror = () => showToast('Could not read PDF. Try pasting text directly.', 'error');
+    reader.readAsArrayBuffer(file);
+  } else {
+    state.resumePDFBase64 = null;
+    state.resumePDFName = null;
+    localStorage.removeItem('jobpilot_pdf');
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target.result;
+      document.getElementById('p-resume').value = text;
+      document.getElementById('upload-content').innerHTML = `
+        <div class="upload-done">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          ${file.name} uploaded — text extracted below
+        </div>`;
+    };
+    reader.onerror = () => showToast('Could not read file. Try pasting text directly.', 'error');
+    reader.readAsText(file);
+  }
 }
 
 // DRAG & DROP
@@ -1018,25 +1169,57 @@ function renderActivity() {
     </div>`).join('');
 }
 
+// SUGGEST ROLES from resume
+function suggestRoles() {
+  const p = getProfile();
+  if (!p.resume && !state.resumePDFBase64) { showToast('Upload or paste your resume in My Profile first', 'error'); return; }
+  const prompt = `Analyze the resume below and suggest 12–15 specific job titles that are a strong match for this person's skills, experience level, and background.
+
+${resumeBlock()}
+
+For each suggested role, return a JSON array (no markdown fences) with objects shaped like:
+{"role": "...", "reason": "...", "level": "Entry/Mid/Senior/Lead"}
+
+Be specific — not just "Engineer" but "Backend Software Engineer", "ML Platform Engineer", etc. Cover a range from safe bets to stretch roles.
+
+Return ONLY the JSON array.`;
+
+  showPromptPanel('Suggest roles from my resume', prompt, (result) => {
+    let suggestions = [];
+    try { suggestions = JSON.parse(result.replace(/```json|```/g, '').trim()); } catch(e) {
+      // Try to extract JSON if Claude added explanation
+      const m = result.match(/\[[\s\S]*\]/);
+      if (m) try { suggestions = JSON.parse(m[0]); } catch(e2) {}
+    }
+    if (!suggestions.length) { showToast('Could not parse roles — try again', 'error'); return; }
+    let added = 0;
+    suggestions.forEach(s => {
+      const roleName = s.role || s;
+      if (roleName && !state.roles.includes(roleName)) {
+        state.roles.push(roleName);
+        addTagEl(roleName);
+        added++;
+      }
+    });
+    saveStateLocal();
+    updateDashRoles();
+    showToast(`Added ${added} suggested roles to your targeting list!`, 'success');
+    addActivity('Roles suggested from resume', `Added ${added} new target roles`, '#5b4fff');
+    goto('profile', 'nav-profile');
+  });
+}
+
 // TAILOR RESUME
-async function tailorResume(silent = false) {
+function tailorResume(silent = false) {
   const p = getProfile();
   const jd = document.getElementById('t-jd').value.trim();
   const company = document.getElementById('t-company').value.trim();
   const role = document.getElementById('t-role').value.trim();
 
-  if (!p.resume) { showToast('Add your resume in My profile first', 'error'); if(!silent) goto('profile','nav-profile'); return null; }
-  if (!jd) { showToast('Paste a job description first', 'error'); return null; }
+  if (!p.resume && !state.resumePDFBase64) { showToast('Add your resume in My Profile first', 'error'); if (!silent) goto('profile','nav-profile'); return; }
+  if (!jd) { showToast('Paste a job description first', 'error'); return; }
 
-  document.getElementById('tailor-steps-card').style.display = 'block';
-  document.getElementById('tailor-output-card').style.display = 'none';
-  const steps = document.getElementById('tailor-steps');
-  steps.innerHTML = `
-    <div class="step-row"><div class="step-check loading"><span class="spinner spinner-dark" style="width:12px;height:12px;border-width:1.5px"></span></div>Analyzing JD keywords and skill gaps...</div>
-    <div class="step-row" style="opacity:0.4"><div class="step-check pending">2</div>Rewriting bullet points to match JD...</div>
-    <div class="step-row" style="opacity:0.4"><div class="step-check pending">3</div>Preserving format and structure...</div>`;
-
-  const prompt = `You are an expert resume coach. Tailor this resume to match the job description below.
+  const prompt = `You are an expert resume coach. Tailor the resume below to match this job description.
 
 STRICT RULES:
 - DO NOT change section names, headers, or overall structure
@@ -1044,87 +1227,104 @@ STRICT RULES:
 - DO prioritize experiences most relevant to this role
 - DO weave in missing keywords naturally into existing bullets
 - DO NOT invent experience or skills not in the original resume
-- Output ONLY the complete tailored resume text
+- Output ONLY the complete tailored resume text, nothing else
 
-APPLICANT RESUME:
-${p.resume}
+${resumeBlock()}
 
-JOB DESCRIPTION for: ${role || 'the role'} at ${company || 'the company'}
+JOB DESCRIPTION — ${role || 'the role'} at ${company || 'the company'}:
 ${jd}
 
 Output the full tailored resume:`;
 
-  try {
-    const r = await fetch(API, { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:1800, messages:[{role:'user',content:prompt}] }) });
-    const d = await r.json();
-    const text = d.content?.filter(c=>c.type==='text').map(c=>c.text).join('') || '';
-
-    steps.innerHTML = `
+  showPromptPanel('Tailor resume to job', prompt, (result) => {
+    document.getElementById('tailor-steps-card').style.display = 'block';
+    document.getElementById('tailor-steps').innerHTML = `
       <div class="step-row"><div class="step-check done">✓</div>Keywords and gaps analyzed</div>
       <div class="step-row"><div class="step-check done">✓</div>Bullet points tailored to JD language</div>
       <div class="step-row"><div class="step-check done">✓</div>Format and structure preserved</div>`;
-
     document.getElementById('tailor-output-card').style.display = 'block';
-    document.getElementById('tailor-output').textContent = text;
-    state.tailoredResume = text;
+    document.getElementById('tailor-output').textContent = result;
+    state.tailoredResume = result;
     state.resumesTailored++;
     updateStats();
     addActivity(`Resume tailored for ${role||'role'} at ${company||'company'}`, 'Keywords matched and bullet points updated', '#5b4fff');
     saveStateLocal();
-    return text;
-  } catch(e) {
-    showToast('Error tailoring resume: ' + e.message, 'error');
-    steps.innerHTML = `<div class="step-row" style="color:var(--red)">Error: ${e.message}</div>`;
-    return null;
-  }
+  });
 }
 
-async function draftCoverEmail(company, role, jd) {
+function setAsBaseResume() {
+  const text = document.getElementById('tailor-output').textContent;
+  if (!text) { showToast('No tailored resume yet', 'error'); return; }
+  document.getElementById('p-resume').value = text;
   const p = getProfile();
-  const prompt = `Write a professional, warm, concise cover email for a job application.
-
-Applicant: ${p.firstName} ${p.lastName} · ${p.headline || 'professional'}
-${p.linkedin ? 'LinkedIn: ' + p.linkedin : ''}
-Company: ${company || 'the company'}
-Role: ${role || 'the position'}
-JD excerpt: ${(jd||'').slice(0, 500)}
-
-Rules:
-- 3-4 short paragraphs max
-- Subject line on first line as "Subject: ..."
-- Open: specific genuine interest in THIS company/role
-- Middle: 2-3 concrete skills/achievements matching the JD
-- Close: confident call to action, offer a quick chat
-- Tone: warm and professional, not stiff
-- Never start with "I am writing to express my interest"
-
-Write the full email (subject + body):`;
-
-  const r = await fetch(API, { method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:600, messages:[{role:'user',content:prompt}] }) });
-  const d = await r.json();
-  return d.content?.filter(c=>c.type==='text').map(c=>c.text).join('') || '';
+  localStorage.setItem('jobpilot_profile', JSON.stringify({...p, resume: text}));
+  showToast('Base resume updated with tailored version!', 'success');
+  addActivity('Base resume updated', 'Tailored version set as your new base resume', '#1a9e5c');
 }
 
-async function tailorAndDraftEmail() {
-  const tailored = await tailorResume(false);
-  if (!tailored) return;
-
+function tailorAndDraftEmail() {
+  const p = getProfile();
+  const jd = document.getElementById('t-jd').value.trim();
   const company = document.getElementById('t-company').value.trim();
   const role = document.getElementById('t-role').value.trim();
-  const jd = document.getElementById('t-jd').value.trim();
 
-  document.getElementById('email-output-card').style.display = 'block';
-  document.getElementById('email-output').textContent = 'Drafting personalized cover email...';
+  if (!p.resume && !state.resumePDFBase64) { showToast('Add your resume in My Profile first', 'error'); goto('profile','nav-profile'); return; }
+  if (!jd) { showToast('Paste a job description first', 'error'); return; }
 
-  const email = await draftCoverEmail(company, role, jd);
-  document.getElementById('email-output').textContent = email;
-  state.draftedEmail = email;
-  addActivity(`Cover email drafted for ${role||'role'} at ${company||'company'}`, 'Personalized based on JD and your profile', '#1a9e5c');
+  const prompt = `You are an expert resume coach and email writer. Do TWO things in sequence:
+
+TASK 1 — Tailor this resume to the job description (same strict rules: preserve structure, rewrite bullets with JD keywords, no invented content):
+
+${resumeBlock()}
+
+JOB DESCRIPTION — ${role || 'the role'} at ${company || 'the company'}:
+${jd}
+
+TASK 2 — Write a professional cover email (3–4 short paragraphs, subject line first as "Subject: ...", warm but not stiff tone, open with specific genuine interest, close with call to action for a quick chat).
+
+Applicant: ${p.firstName} ${p.lastName} · ${p.headline || 'professional'}${p.linkedin ? '\nLinkedIn: ' + p.linkedin : ''}
+
+Format your response EXACTLY like this:
+===TAILORED RESUME===
+[full tailored resume]
+===COVER EMAIL===
+[subject line and email body]`;
+
+  showPromptPanel('Tailor resume + draft cover email', prompt, (result) => {
+    const resumePart = result.match(/===TAILORED RESUME===\s*([\s\S]*?)(?:===COVER EMAIL===|$)/i);
+    const emailPart = result.match(/===COVER EMAIL===\s*([\s\S]*?)$/i);
+
+    if (resumePart?.[1]) {
+      const tailored = resumePart[1].trim();
+      document.getElementById('tailor-steps-card').style.display = 'block';
+      document.getElementById('tailor-steps').innerHTML = `
+        <div class="step-row"><div class="step-check done">✓</div>Keywords matched</div>
+        <div class="step-row"><div class="step-check done">✓</div>Bullets tailored</div>
+        <div class="step-row"><div class="step-check done">✓</div>Structure preserved</div>`;
+      document.getElementById('tailor-output-card').style.display = 'block';
+      document.getElementById('tailor-output').textContent = tailored;
+      state.tailoredResume = tailored;
+    }
+    if (emailPart?.[1]) {
+      const email = emailPart[1].trim();
+      document.getElementById('email-output-card').style.display = 'block';
+      document.getElementById('email-output').textContent = email;
+      state.draftedEmail = email;
+    }
+    // Fallback: no separators found, treat whole thing as tailored resume
+    if (!resumePart && !emailPart) {
+      document.getElementById('tailor-output-card').style.display = 'block';
+      document.getElementById('tailor-output').textContent = result;
+      state.tailoredResume = result;
+    }
+    state.resumesTailored++;
+    updateStats();
+    addActivity(`Resume + email for ${role||'role'} at ${company||'company'}`, 'Both tailored via Claude', '#5b4fff');
+    saveStateLocal();
+  });
 }
 
-// SEND EMAIL
+// SEND EMAIL — generate a Gmail prompt for Claude
 function openSendModal() {
   const emailText = state.draftedEmail || '';
   const lines = emailText.split('\n');
@@ -1139,70 +1339,60 @@ function openSendModal() {
 }
 function closeSendModal() { document.getElementById('send-modal').classList.remove('open'); }
 
-async function sendEmail() {
+function sendEmail() {
   const to = document.getElementById('modal-to').value.trim();
   const subj = document.getElementById('modal-subject').value.trim();
   const body = document.getElementById('modal-body').value.trim();
   if (!to || !subj || !body) { showToast('Fill in all fields', 'error'); return; }
 
-  document.getElementById('modal-status').innerHTML = '<span class="spinner"></span> Sending via Gmail...';
-  try {
-    const prompt = `Send this email using Gmail:
+  const prompt = `Please send this email using your Gmail tool:
+
 To: ${to}
 Subject: ${subj}
 Body:
 ${body}
 
-Use the Gmail tool to send this email now.`;
-    await fetch(API, { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:200,
-        messages:[{role:'user',content:prompt}],
-        mcp_servers:[{type:'url',url:GMAIL_MCP,name:'gmail'}] }) });
+Send it now and confirm it was sent.`;
+
+  closeSendModal();
+  showPromptPanel('Send email via Claude Gmail', prompt, (result) => {
     state.emailsSent++;
     updateStats();
     addActivity(`Email sent to ${to}`, subj, '#1a9e5c');
     saveStateLocal();
-    showToast('Email sent!', 'success');
-    setTimeout(closeSendModal, 1500);
-  } catch(e) {
-    document.getElementById('modal-status').textContent = 'Error: ' + e.message;
-  }
+    showToast('Email recorded as sent!', 'success');
+  });
 }
 
 // INBOX
-async function scanInbox() {
-  document.getElementById('inbox-list').innerHTML = `<div class="card" style="display:flex;align-items:center;gap:12px;font-size:13.5px;color:var(--ink-2)"><span class="spinner spinner-dark"></span> Scanning your Gmail for recruiter emails...</div>`;
+function scanInbox() {
+  const roles = state.roles.join(', ') || 'any relevant role';
+  const prompt = `Please search my Gmail inbox for recruiter, HR, talent acquisition, or hiring manager emails about job opportunities.
 
-  const roles = state.roles.join(', ') || 'any';
-  try {
-    const r = await fetch(API, { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:1200,
-        messages:[{role:'user',content:`Search my Gmail inbox for recruiter, HR, talent acquisition, or hiring manager emails about job opportunities. 
-        
-Target roles I care about: ${roles}
+I am targeting these roles: ${roles}
 
-Return a JSON array only (no markdown, no backticks), each object with: id, from, fromEmail, subject, snippet, date, relevantRole (which target role it matches or "General opportunity").
+For each email found, return a JSON array (no markdown fences, no extra text) where each object has:
+{ "id": "...", "from": "Sender Name", "fromEmail": "sender@company.com", "subject": "...", "snippet": "first 100 chars of body", "date": "...", "relevantRole": "which of my target roles it matches or General opportunity" }
 
-Find up to 8 recent recruiter emails. Return [] if none found.`}],
-        mcp_servers:[{type:'url',url:GMAIL_MCP,name:'gmail'}] }) });
-    const d = await r.json();
-    const text = d.content?.filter(c=>c.type==='text').map(c=>c.text).join('') || '[]';
+Find up to 8 recent recruiter emails from the last 30 days. Return [] if none found.
+Return ONLY the JSON array.`;
+
+  showPromptPanel('Scan Gmail for recruiter emails', prompt, (result) => {
     let emails = [];
-    try { emails = JSON.parse(text.replace(/```json|```/g,'').trim()); } catch(e) {}
-
+    try { emails = JSON.parse(result.replace(/```json|```/g, '').trim()); } catch(e) {
+      const m = result.match(/\[[\s\S]*\]/);
+      if (m) try { emails = JSON.parse(m[0]); } catch(e2) {}
+    }
     state.emailsScanned += emails.length;
     updateStats();
-    addActivity(`Inbox scanned`, `Found ${emails.length} recruiter email(s)`, '#c47d0e');
+    addActivity('Inbox scanned', `Found ${emails.length} recruiter email(s)`, '#c47d0e');
     saveStateLocal();
-
     if (emails.length) {
       document.getElementById('inbox-badge').style.display = 'inline';
       document.getElementById('inbox-badge').textContent = emails.length;
     }
     renderInbox(emails);
-  } catch(e) {
-    document.getElementById('inbox-list').innerHTML = `<div class="card" style="color:var(--red);font-size:13.5px">Error scanning inbox: ${e.message}</div>`;
-  }
+  });
 }
 
 function renderInbox(emails) {
@@ -1232,41 +1422,38 @@ function renderInbox(emails) {
     </div>`).join('');
 }
 
-async function handleReply(email) {
+function handleReply(email) {
   state.currentReply = email;
-  document.getElementById('reply-approval').style.display = 'block';
-  document.getElementById('reply-to-label').textContent = `Replying to: ${email.from} · "${email.subject}"`;
-  document.getElementById('reply-subject').value = `Re: ${email.subject}`;
-  document.getElementById('reply-body').value = 'Drafting your personalized reply...';
-  document.getElementById('reply-send-status').textContent = '';
-  document.getElementById('reply-approval').scrollIntoView({ behavior: 'smooth' });
-
   const p = getProfile();
-  const prompt = `Write a professional reply to this recruiter email on behalf of ${p.firstName} ${p.lastName}.
 
-Recruiter: ${email.from}
+  const prompt = `Write a warm, professional reply to this recruiter email on behalf of ${p.firstName} ${p.lastName}.
+
+Recruiter: ${email.from} <${email.fromEmail}>
 Subject: ${email.subject}
-Message preview: ${email.snippet}
+Message: ${email.snippet}
 Role match: ${email.relevantRole}
 
-Applicant profile: ${p.headline}
-Resume highlights (first 500 chars): ${p.resume.slice(0,500)}
+My profile: ${p.headline}
+${resumeBlock()}
 
-Write a warm, professional reply that:
-1. Thanks them for reaching out specifically
-2. Confirms genuine interest in the ${email.relevantRole} opportunity  
-3. Highlights 2-3 relevant strengths matching this type of role
-4. Mentions resume is attached
-5. Proposes a quick intro call this week
-6. Signs off with name, phone, email, LinkedIn
+Reply rules:
+1. Thank them for reaching out (be specific)
+2. Confirm genuine interest in the ${email.relevantRole} opportunity
+3. Highlight 2-3 relevant strengths
+4. Mention resume is attached
+5. Propose a quick intro call this week
+6. Sign off with: ${p.firstName} ${p.lastName} | ${p.phone || ''} | ${p.email || ''}${p.linkedin ? ' | ' + p.linkedin : ''}
 
-Only the email body (no subject):`;
+Output ONLY the email body (no subject line):`;
 
-  const r = await fetch(API, { method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:500, messages:[{role:'user',content:prompt}] }) });
-  const d = await r.json();
-  const text = d.content?.filter(c=>c.type==='text').map(c=>c.text).join('') || 'Error drafting reply.';
-  document.getElementById('reply-body').value = text;
+  showPromptPanel(`Draft reply to ${email.from}`, prompt, (result) => {
+    document.getElementById('reply-approval').style.display = 'block';
+    document.getElementById('reply-to-label').textContent = `Replying to: ${email.from} · "${email.subject}"`;
+    document.getElementById('reply-subject').value = `Re: ${email.subject}`;
+    document.getElementById('reply-body').value = result;
+    document.getElementById('reply-send-status').textContent = '';
+    document.getElementById('reply-approval').scrollIntoView({ behavior: 'smooth' });
+  });
 }
 
 function closeReply() {
@@ -1274,32 +1461,30 @@ function closeReply() {
   state.currentReply = null;
 }
 
-async function sendReply() {
+function sendReply() {
   if (!state.currentReply) return;
   const subj = document.getElementById('reply-subject').value;
   const body = document.getElementById('reply-body').value;
   const to = state.currentReply.fromEmail || state.currentReply.from;
-  document.getElementById('reply-send-status').innerHTML = '<span class="spinner spinner-dark"></span> Sending...';
 
-  try {
-    const prompt = `Send a Gmail reply email now.
+  const prompt = `Please send this reply email using your Gmail tool:
+
 To: ${to}
 Subject: ${subj}
 Body:
-${body}`;
-    await fetch(API, { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:200,
-        messages:[{role:'user',content:prompt}],
-        mcp_servers:[{type:'url',url:GMAIL_MCP,name:'gmail'}] }) });
+${body}
+
+Send it now and confirm.`;
+
+  document.getElementById('reply-send-status').textContent = '';
+  showPromptPanel(`Send reply to ${state.currentReply.from}`, prompt, (result) => {
     state.emailsSent++;
     updateStats();
     addActivity(`Replied to ${state.currentReply.from}`, subj, '#1a9e5c');
     saveStateLocal();
-    showToast('Reply sent!', 'success');
-    setTimeout(closeReply, 1500);
-  } catch(e) {
-    document.getElementById('reply-send-status').textContent = 'Error: ' + e.message;
-  }
+    showToast('Reply recorded as sent!', 'success');
+    closeReply();
+  });
 }
 
 // APPLICATIONS
