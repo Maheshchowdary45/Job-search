@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JobPilot — AI Job Search Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0f0f10;
+    --ink-2: #3a3a40;
+    --ink-3: #7a7a85;
+    --ink-4: #b0b0bb;
+    --surface: #ffffff;
+    --surface-2: #f6f6f8;
+    --surface-3: #eeeeF2;
+    --border: rgba(0,0,0,0.08);
+    --border-strong: rgba(0,0,0,0.14);
+    --accent: #5b4fff;
+    --accent-light: #ebe9ff;
+    --accent-mid: #8b7fff;
+    --green: #1a9e5c;
+    --green-light: #e6f7ee;
+    --red: #d93b3b;
+    --red-light: #fdeaea;
+    --amber: #c47d0e;
+    --amber-light: #fef3db;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --radius-lg: 18px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 24px rgba(0,0,0,0.10);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 15px; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--surface-2);
+    color: var(--ink);
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  /* LAYOUT */
+  .shell { display: flex; min-height: 100vh; }
+  .sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    background: var(--ink);
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 10;
+  }
+  .main { margin-left: 240px; flex: 1; min-height: 100vh; }
+
+  /* SIDEBAR */
+  .brand {
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+  .brand-logo {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .brand-icon {
+    width: 32px; height: 32px;
+    background: var(--accent);
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .brand-name {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 18px; font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.3px;
+  }
+  .brand-tag {
+    font-size: 11px;
+    color: rgba(255,255,255,0.35);
+    margin-top: 2px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .nav { padding: 16px 10px; flex: 1; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 13.5px;
+    color: rgba(255,255,255,0.55);
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-bottom: 2px;
+    font-weight: 400;
+    border: none; background: transparent; width: 100%; text-align: left;
+  }
+  .nav-item svg { opacity: 0.6; flex-shrink: 0; }
+  .nav-item:hover { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.85); }
+  .nav-item.active { background: rgba(91,79,255,0.25); color: #fff; font-weight: 500; }
+  .nav-item.active svg { opacity: 1; }
+
+  .agent-status-box {
+    margin: 10px;
+    padding: 14px;
+    border-radius: var(--radius);
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .agent-label { font-size: 11px; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+  .agent-toggle {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 12.5px; font-weight: 500;
+    cursor: pointer;
+    border: none;
+    width: 100%;
+    transition: all 0.2s;
+  }
+  .agent-toggle.start { background: var(--green); color: #fff; }
+  .agent-toggle.stop { background: var(--red); color: #fff; }
+  .agent-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: currentColor; opacity: 0.8;
+  }
+  .agent-running .agent-dot { animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:0.4;transform:scale(0.9)} 50%{opacity:1;transform:scale(1.1)} }
+
+  /* TOPBAR */
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 28px;
+    height: 60px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 5;
+  }
+  .page-title { font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 600; color: var(--ink); }
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .avatar-chip {
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 10px 5px 5px;
+    border-radius: 40px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    font-size: 13px;
+    color: var(--ink-2);
+  }
+  .avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--accent-light);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600; color: var(--accent);
+  }
+
+  /* CONTENT */
+  .content { padding: 28px; max-width: 900px; }
+
+  /* CARDS */
+  .card {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    padding: 24px;
+    box-shadow: var(--shadow);
+    margin-bottom: 16px;
+  }
+  .card-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 15px; font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 4px;
+  }
+  .card-sub { font-size: 13px; color: var(--ink-3); margin-bottom: 20px; }
+
+  /* FORM */
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .form-group { display: flex; flex-direction: column; margin-bottom: 14px; }
+  .form-group:last-child { margin-bottom: 0; }
+  label { font-size: 12.5px; font-weight: 500; color: var(--ink-2); margin-bottom: 6px; }
+  input[type=text], input[type=email], input[type=tel], textarea, select {
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    padding: 9px 12px;
+    font-size: 13.5px;
+    font-family: 'Inter', sans-serif;
+    color: var(--ink);
+    background: var(--surface);
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    width: 100%;
+  }
+  input:focus, textarea:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(91,79,255,0.12);
+  }
+  textarea { resize: vertical; min-height: 110px; line-height: 1.6; }
+
+  /* UPLOAD ZONE */
+  .upload-zone {
+    border: 2px dashed var(--border-strong);
+    border-radius: var(--radius);
+    padding: 28px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    background: var(--surface-2);
+  }
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--accent);
+    background: var(--accent-light);
+  }
+  .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .upload-icon { font-size: 28px; margin-bottom: 8px; }
+  .upload-title { font-size: 14px; font-weight: 500; color: var(--ink-2); }
+  .upload-sub { font-size: 12px; color: var(--ink-3); margin-top: 3px; }
+  .upload-done {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px;
+    background: var(--green-light);
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(26,158,92,0.2);
+    font-size: 13px; color: var(--green); font-weight: 500;
+  }
+
+  /* TAGS */
+  .tags-input-area {
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    padding: 8px;
+    min-height: 44px;
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+    cursor: text;
+  }
+  .tags-input-area:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(91,79,255,0.12); }
+  .tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: var(--accent-light);
+    color: var(--accent);
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 12px; font-weight: 500;
+  }
+  .tag-remove { cursor: pointer; font-size: 14px; line-height: 1; opacity: 0.6; border: none; background: none; color: inherit; padding: 0; }
+  .tags-input-area input {
+    border: none; outline: none; font-size: 13px;
+    background: transparent; flex: 1; min-width: 120px; padding: 2px 4px;
+    box-shadow: none;
+  }
+
+  /* BUTTONS */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 9px 18px;
+    border-radius: var(--radius-sm);
+    font-size: 13.5px; font-weight: 500;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #4a3eee; }
+  .btn-secondary { background: var(--surface); color: var(--ink-2); border-color: var(--border-strong); }
+  .btn-secondary:hover { background: var(--surface-2); }
+  .btn-danger { background: var(--red-light); color: var(--red); border-color: rgba(217,59,59,0.2); }
+  .btn-success { background: var(--green-light); color: var(--green); border-color: rgba(26,158,92,0.2); }
+  .btn-sm { padding: 6px 12px; font-size: 12.5px; }
+  .btn-lg { padding: 12px 24px; font-size: 15px; }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+
+  /* STATS */
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 14px; margin-bottom: 20px; }
+  .stat-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 18px 20px;
+    box-shadow: var(--shadow);
+  }
+  .stat-num {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 30px; font-weight: 700;
+    color: var(--ink);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .stat-label { font-size: 12px; color: var(--ink-3); }
+  .stat-card.accent { background: var(--accent); border-color: var(--accent); }
+  .stat-card.accent .stat-num, .stat-card.accent .stat-label { color: #fff; }
+  .stat-card.accent .stat-label { opacity: 0.75; }
+
+  /* ACTIVITY FEED */
+  .activity-item {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .activity-item:last-child { border-bottom: none; }
+  .activity-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    flex-shrink: 0; margin-top: 6px;
+  }
+  .activity-body { flex: 1; }
+  .activity-title { font-weight: 500; color: var(--ink); }
+  .activity-meta { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+
+  /* BADGE */
+  .badge {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 20px;
+    font-size: 11.5px; font-weight: 500;
+  }
+  .badge-active { background: var(--green-light); color: var(--green); }
+  .badge-idle { background: var(--surface-3); color: var(--ink-3); }
+  .badge-warn { background: var(--amber-light); color: var(--amber); }
+  .badge-info { background: var(--accent-light); color: var(--accent); }
+
+  /* PAGES */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* TOAST */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--ink); color: #fff;
+    padding: 12px 20px;
+    border-radius: var(--radius);
+    font-size: 13.5px;
+    box-shadow: var(--shadow-md);
+    transform: translateY(80px); opacity: 0;
+    transition: all 0.3s cubic-bezier(.34,1.56,.64,1);
+    z-index: 100;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { background: var(--green); }
+  .toast.error { background: var(--red); }
+
+  /* MODAL */
+  .modal-backdrop {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 50; align-items: center; justify-content: center;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    padding: 28px;
+    width: 520px; max-width: 95vw;
+    box-shadow: var(--shadow-md);
+    max-height: 90vh; overflow-y: auto;
+  }
+  .modal-title { font-family: 'Space Grotesk', sans-serif; font-size: 17px; font-weight: 600; margin-bottom: 16px; }
+
+  /* RESULT BOX */
+  .result-box {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    font-size: 13px; line-height: 1.75;
+    white-space: pre-wrap; word-break: break-word;
+    max-height: 320px; overflow-y: auto;
+    font-family: 'Inter', sans-serif;
+    color: var(--ink-2);
+  }
+
+  /* LOADING */
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: inline-block;
+  }
+  .spinner-dark {
+    border-color: rgba(0,0,0,0.1);
+    border-top-color: var(--accent);
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* SECTION DIVIDER */
+  .section-divider {
+    display: flex; align-items: center; gap: 12px;
+    margin: 24px 0 20px;
+    color: var(--ink-3); font-size: 11.5px; font-weight: 500;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .section-divider::before, .section-divider::after {
+    content: ''; flex: 1; border-top: 1px solid var(--border);
+  }
+
+  /* AGENT BANNER */
+  .agent-banner {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px;
+    border-radius: var(--radius);
+    margin-bottom: 20px;
+    border: 1px solid;
+    font-size: 13.5px;
+  }
+  .agent-banner.running { background: var(--green-light); border-color: rgba(26,158,92,0.25); color: var(--green); }
+  .agent-banner.stopped { background: var(--surface-3); border-color: var(--border); color: var(--ink-3); }
+
+  /* STEP PROGRESS */
+  .step-row {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px; color: var(--ink-2);
+    padding: 7px 0;
+  }
+  .step-check { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 11px; }
+  .step-check.done { background: var(--green-light); color: var(--green); }
+  .step-check.pending { background: var(--surface-3); color: var(--ink-4); }
+  .step-check.loading { background: var(--accent-light); }
+
+  @media (max-width: 700px) {
+    .sidebar { display: none; }
+    .main { margin-left: 0; }
+    .form-row { grid-template-columns: 1fr; }
+    .content { padding: 16px; }
+  }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-logo">
+        <div class="brand-icon">🚀</div>
+        <div>
+          <div class="brand-name">JobPilot</div>
+        </div>
+      </div>
+      <div class="brand-tag">AI Job Search Agent</div>
+    </div>
+
+    <nav class="nav">
+      <button class="nav-item active" onclick="goto('dashboard','nav-dashboard')" id="nav-dashboard">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        Dashboard
+      </button>
+      <button class="nav-item" onclick="goto('profile','nav-profile')" id="nav-profile">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        My profile
+      </button>
+      <button class="nav-item" onclick="goto('tailor','nav-tailor')" id="nav-tailor">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+        Tailor resume
+      </button>
+      <button class="nav-item" onclick="goto('inbox','nav-inbox')" id="nav-inbox">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        Recruiter inbox
+        <span id="inbox-badge" style="display:none;background:var(--accent);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:auto"></span>
+      </button>
+      <button class="nav-item" onclick="goto('applications','nav-applications')" id="nav-applications">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        Applications
+      </button>
+    </nav>
+
+    <div class="agent-status-box">
+      <div class="agent-label">Agent</div>
+      <div id="agent-status-text" style="font-size:12px;color:rgba(255,255,255,0.4);margin-bottom:10px">Stopped · Set up profile to start</div>
+      <button class="agent-toggle start" id="agent-toggle-btn" onclick="toggleAgent()">
+        <div class="agent-dot"></div>
+        <span id="agent-btn-label">Start agent</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <div class="page-title" id="topbar-title">Dashboard</div>
+      <div class="topbar-right">
+        <div class="avatar-chip" id="avatar-chip">
+          <div class="avatar" id="topbar-avatar">?</div>
+          <span id="topbar-name">Set up profile</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- DASHBOARD -->
+      <div class="page active" id="dashboard">
+        <div class="agent-banner stopped" id="agent-banner">
+          <div style="display:flex;align-items:center;gap:10px;font-weight:500">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Agent is stopped
+          </div>
+          <span style="font-size:12px">Go to My profile and click Start agent</span>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card accent">
+            <div class="stat-num" id="stat-sent">0</div>
+            <div class="stat-label">Emails sent</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="stat-scanned">0</div>
+            <div class="stat-label">Emails scanned</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="stat-tailored">0</div>
+            <div class="stat-label">Resumes tailored</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="stat-apps">0</div>
+            <div class="stat-label">Applications saved</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Recent activity</div>
+          <div class="card-sub">Everything your agent has done</div>
+          <div id="activity-feed">
+            <div style="padding:24px 0;text-align:center;color:var(--ink-3);font-size:13.5px">
+              No activity yet. Set up your profile and start the agent.
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Targeting roles</div>
+          <div class="card-sub">Agent will only reply to emails matching these roles</div>
+          <div id="dash-roles" style="display:flex;flex-wrap:wrap;gap:6px;min-height:32px">
+            <span style="font-size:13px;color:var(--ink-3)">No roles set — update your profile</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- PROFILE -->
+      <div class="page" id="profile">
+        <div class="card">
+          <div class="card-title">Personal details</div>
+          <div class="card-sub">Your info is used to personalize emails sent by the agent</div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>First name</label>
+              <input type="text" id="first-name" placeholder="Jane">
+            </div>
+            <div class="form-group">
+              <label>Last name</label>
+              <input type="text" id="last-name" placeholder="Smith">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Email address</label>
+              <input type="email" id="p-email" placeholder="jane@gmail.com">
+            </div>
+            <div class="form-group">
+              <label>Phone number</label>
+              <input type="tel" id="p-phone" placeholder="+1 (555) 000-0000">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Professional headline</label>
+            <input type="text" id="p-headline" placeholder="Senior Software Engineer · 6 yrs exp · React, Node.js">
+          </div>
+
+          <div class="section-divider">Resume</div>
+
+          <div class="form-group">
+            <label>Upload resume (PDF or TXT)</label>
+            <div class="upload-zone" id="upload-zone">
+              <input type="file" id="resume-file" accept=".pdf,.txt,.doc,.docx" onchange="handleFileUpload(event)">
+              <div id="upload-content">
+                <div class="upload-icon">📄</div>
+                <div class="upload-title">Drop your resume here or click to browse</div>
+                <div class="upload-sub">PDF, TXT, DOC — max 5MB</div>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Or paste resume text directly</label>
+            <textarea id="p-resume" rows="8" placeholder="Paste your full resume here..."></textarea>
+          </div>
+
+          <div class="section-divider">Job targeting</div>
+
+          <div class="form-group">
+            <label>Roles you're targeting (press Enter to add)</label>
+            <div class="tags-input-area" id="roles-tags-area" onclick="document.getElementById('roles-input').focus()">
+              <input type="text" id="roles-input" placeholder="e.g. Software Engineer..." onkeydown="handleTagInput(event)">
+            </div>
+            <div style="font-size:12px;color:var(--ink-3);margin-top:6px">Agent will only respond to recruiter emails matching these roles</div>
+          </div>
+          <div class="form-group">
+            <label>LinkedIn URL (optional)</label>
+            <input type="text" id="p-linkedin" placeholder="https://linkedin.com/in/yourname">
+          </div>
+          <div class="form-group">
+            <label>Preferred locations</label>
+            <input type="text" id="p-location" placeholder="Remote, Austin TX, New York NY">
+          </div>
+
+          <div class="btn-row">
+            <button class="btn btn-primary btn-lg" onclick="saveProfile()">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+              Save profile
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAILOR -->
+      <div class="page" id="tailor">
+        <div class="card">
+          <div class="card-title">Tailor resume to a job</div>
+          <div class="card-sub">AI matches your resume to the JD — keywords, bullet points, and priorities — without touching your format</div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Company name</label>
+              <input type="text" id="t-company" placeholder="Acme Corp">
+            </div>
+            <div class="form-group">
+              <label>Role title</label>
+              <input type="text" id="t-role" placeholder="Senior Backend Engineer">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Job description</label>
+            <textarea id="t-jd" rows="9" placeholder="Paste the full job description here..."></textarea>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn btn-primary" onclick="tailorResume()" id="tailor-btn-el">
+              <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v2m0 16v2m10-10h-2M4 12H2m15.07-7.07-1.41 1.41M8.34 15.66l-1.41 1.41M18.66 15.66l-1.41-1.41M6.34 8.34 4.93 6.93"/></svg>
+              Tailor resume
+            </button>
+            <button class="btn btn-secondary" onclick="tailorAndDraftEmail()" id="draft-btn-el">
+              <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              Tailor + draft email
+            </button>
+          </div>
+        </div>
+
+        <div class="card" id="tailor-steps-card" style="display:none">
+          <div class="card-title">Processing</div>
+          <div id="tailor-steps"></div>
+        </div>
+
+        <div class="card" id="tailor-output-card" style="display:none">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <div>
+              <div class="card-title">Tailored resume</div>
+              <div style="font-size:12px;color:var(--ink-3)">Review before using</div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-sm btn-secondary" onclick="copyText('tailor-output')">Copy</button>
+              <button class="btn btn-sm btn-primary" onclick="saveApplication()">Save application</button>
+            </div>
+          </div>
+          <div class="result-box" id="tailor-output"></div>
+        </div>
+
+        <div class="card" id="email-output-card" style="display:none">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <div>
+              <div class="card-title">Cover email draft</div>
+              <div style="font-size:12px;color:var(--ink-3)">Edit before sending</div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-sm btn-secondary" onclick="copyText('email-output')">Copy</button>
+              <button class="btn btn-sm btn-primary" onclick="openSendModal()">Send via Gmail</button>
+            </div>
+          </div>
+          <div class="result-box" id="email-output"></div>
+        </div>
+      </div>
+
+      <!-- INBOX -->
+      <div class="page" id="inbox">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <div>
+            <div style="font-size:18px;font-weight:600;font-family:'Space Grotesk',sans-serif">Recruiter inbox</div>
+            <div style="font-size:13px;color:var(--ink-3)">Agent scans for matching recruiter emails</div>
+          </div>
+          <button class="btn btn-primary" onclick="scanInbox()">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            Scan inbox
+          </button>
+        </div>
+        <div id="inbox-list">
+          <div class="card" style="text-align:center;padding:40px;color:var(--ink-3);font-size:13.5px">
+            Click "Scan inbox" to check for recruiter emails
+          </div>
+        </div>
+
+        <!-- Reply approval modal content rendered here -->
+        <div id="reply-approval" style="display:none">
+          <div class="card" style="border:2px solid var(--accent)">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+              <div class="card-title">Review reply before sending</div>
+              <button class="btn btn-sm btn-secondary" onclick="closeReply()">Cancel</button>
+            </div>
+            <div id="reply-to-label" style="font-size:13px;color:var(--ink-3);margin-bottom:14px"></div>
+            <div class="form-group">
+              <label>Subject</label>
+              <input type="text" id="reply-subject">
+            </div>
+            <div class="form-group">
+              <label>Email body (edit freely)</label>
+              <textarea id="reply-body" rows="9"></textarea>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-primary" onclick="sendReply()">
+                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                Send reply
+              </button>
+              <button class="btn btn-secondary" onclick="closeReply()">Discard</button>
+            </div>
+            <div id="reply-send-status" style="margin-top:10px;font-size:13px"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- APPLICATIONS -->
+      <div class="page" id="applications">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <div>
+            <div style="font-size:18px;font-weight:600;font-family:'Space Grotesk',sans-serif">Applications</div>
+            <div style="font-size:13px;color:var(--ink-3)">Track every job you've applied to</div>
+          </div>
+        </div>
+        <div class="card">
+          <div id="apps-list">
+            <div style="text-align:center;padding:32px;color:var(--ink-3);font-size:13.5px">No applications yet. Tailor a resume and save it to track here.</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </main>
+</div><!-- /shell -->
+
+<!-- SEND EMAIL MODAL -->
+<div class="modal-backdrop" id="send-modal">
+  <div class="modal">
+    <div class="modal-title">Send email via Gmail</div>
+    <div class="form-group">
+      <label>To (recruiter email)</label>
+      <input type="email" id="modal-to" placeholder="recruiter@company.com">
+    </div>
+    <div class="form-group">
+      <label>Subject</label>
+      <input type="text" id="modal-subject">
+    </div>
+    <div class="form-group">
+      <label>Body</label>
+      <textarea id="modal-body" rows="9"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="sendEmail()">Send email</button>
+      <button class="btn btn-secondary" onclick="closeSendModal()">Cancel</button>
+    </div>
+    <div id="modal-status" style="margin-top:10px;font-size:13px"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+const API = "https://api.anthropic.com/v1/messages";
+const GMAIL_MCP = "https://gmailmcp.googleapis.com/mcp/v1";
+
+// State
+let state = {
+  agentRunning: false,
+  agentInterval: null,
+  roles: [],
+  emailsSent: 0,
+  emailsScanned: 0,
+  resumesTailored: 0,
+  activity: [],
+  applications: [],
+  currentReply: null,
+  tailoredResume: null,
+  draftedEmail: null
+};
+
+// Load saved state
+function loadState() {
+  const saved = localStorage.getItem('jobpilot_state');
+  if (saved) {
+    try {
+      const s = JSON.parse(saved);
+      state.roles = s.roles || [];
+      state.emailsSent = s.emailsSent || 0;
+      state.emailsScanned = s.emailsScanned || 0;
+      state.resumesTailored = s.resumesTailored || 0;
+      state.activity = s.activity || [];
+      state.applications = s.applications || [];
+    } catch(e) {}
+  }
+  // Load profile
+  const prof = localStorage.getItem('jobpilot_profile');
+  if (prof) {
+    try {
+      const p = JSON.parse(prof);
+      if (p.firstName) document.getElementById('first-name').value = p.firstName;
+      if (p.lastName) document.getElementById('last-name').value = p.lastName;
+      if (p.email) document.getElementById('p-email').value = p.email;
+      if (p.phone) document.getElementById('p-phone').value = p.phone;
+      if (p.headline) document.getElementById('p-headline').value = p.headline;
+      if (p.resume) document.getElementById('p-resume').value = p.resume;
+      if (p.linkedin) document.getElementById('p-linkedin').value = p.linkedin;
+      if (p.location) document.getElementById('p-location').value = p.location;
+    } catch(e) {}
+  }
+  state.roles.forEach(r => addTagEl(r));
+  updateTopbar();
+  updateStats();
+  renderActivity();
+  renderApplications();
+  updateDashRoles();
+}
+
+function saveStateLocal() {
+  localStorage.setItem('jobpilot_state', JSON.stringify({
+    roles: state.roles,
+    emailsSent: state.emailsSent,
+    emailsScanned: state.emailsScanned,
+    resumesTailored: state.resumesTailored,
+    activity: state.activity.slice(0, 50),
+    applications: state.applications
+  }));
+}
+
+// NAVIGATION
+function goto(page, navId) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(page).classList.add('active');
+  document.getElementById(navId).classList.add('active');
+  const titles = { dashboard:'Dashboard', profile:'My profile', tailor:'Tailor resume', inbox:'Recruiter inbox', applications:'Applications' };
+  document.getElementById('topbar-title').textContent = titles[page] || page;
+  if (page === 'applications') renderApplications();
+}
+
+// PROFILE
+function getProfile() {
+  return {
+    firstName: document.getElementById('first-name').value.trim(),
+    lastName: document.getElementById('last-name').value.trim(),
+    email: document.getElementById('p-email').value.trim(),
+    phone: document.getElementById('p-phone').value.trim(),
+    headline: document.getElementById('p-headline').value.trim(),
+    resume: document.getElementById('p-resume').value.trim(),
+    linkedin: document.getElementById('p-linkedin').value.trim(),
+    location: document.getElementById('p-location').value.trim()
+  };
+}
+
+function saveProfile() {
+  const p = getProfile();
+  if (!p.firstName || !p.email) { showToast('Please fill in at least your name and email', 'error'); return; }
+  localStorage.setItem('jobpilot_profile', JSON.stringify(p));
+  updateTopbar();
+  updateDashRoles();
+  showToast('Profile saved!', 'success');
+}
+
+function updateTopbar() {
+  const p = getProfile();
+  const name = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Set up profile';
+  document.getElementById('topbar-name').textContent = name;
+  document.getElementById('topbar-avatar').textContent = (p.firstName?.[0] || '?') + (p.lastName?.[0] || '');
+}
+
+// FILE UPLOAD
+function handleFileUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const text = e.target.result;
+    document.getElementById('p-resume').value = text;
+    document.getElementById('upload-content').innerHTML = `
+      <div class="upload-done">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        ${file.name} uploaded — text extracted below
+      </div>`;
+  };
+  reader.onerror = () => showToast('Could not read file. Try pasting text directly.', 'error');
+  reader.readAsText(file);
+}
+
+// DRAG & DROP
+const uploadZone = document.getElementById('upload-zone');
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault(); uploadZone.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) { document.getElementById('resume-file').files = e.dataTransfer.files; handleFileUpload({target:{files:[file]}}); }
+});
+
+// TAGS
+function handleTagInput(e) {
+  if ((e.key === 'Enter' || e.key === ',') && e.target.value.trim()) {
+    e.preventDefault();
+    const val = e.target.value.trim().replace(/,/g,'');
+    if (val && !state.roles.includes(val)) {
+      state.roles.push(val);
+      addTagEl(val);
+      saveStateLocal();
+    }
+    e.target.value = '';
+  }
+}
+function addTagEl(val) {
+  const area = document.getElementById('roles-tags-area');
+  const tag = document.createElement('span');
+  tag.className = 'tag';
+  tag.innerHTML = `${val}<button class="tag-remove" onclick="removeTag('${val}',this)">×</button>`;
+  area.insertBefore(tag, document.getElementById('roles-input'));
+}
+function removeTag(val, el) {
+  state.roles = state.roles.filter(r => r !== val);
+  el.parentElement.remove();
+  saveStateLocal();
+  updateDashRoles();
+}
+function updateDashRoles() {
+  const el = document.getElementById('dash-roles');
+  if (!state.roles.length) {
+    el.innerHTML = '<span style="font-size:13px;color:var(--ink-3)">No roles set — update your profile</span>';
+    return;
+  }
+  el.innerHTML = state.roles.map(r => `<span class="badge badge-info">${r}</span>`).join('');
+}
+
+// AGENT
+function toggleAgent() {
+  const p = getProfile();
+  if (!p.resume && !state.agentRunning) { showToast('Add your resume to profile first', 'error'); return; }
+  if (!p.email && !state.agentRunning) { showToast('Add your email to profile first', 'error'); return; }
+
+  state.agentRunning = !state.agentRunning;
+  const btn = document.getElementById('agent-toggle-btn');
+  const label = document.getElementById('agent-btn-label');
+  const statusText = document.getElementById('agent-status-text');
+  const banner = document.getElementById('agent-banner');
+
+  if (state.agentRunning) {
+    btn.className = 'agent-toggle stop';
+    btn.classList.add('agent-running');
+    label.textContent = 'Stop agent';
+    statusText.innerHTML = '<span style="color:#6ef2a0">● Running · Monitoring Gmail</span>';
+    banner.className = 'agent-banner running';
+    banner.innerHTML = `<div style="display:flex;align-items:center;gap:10px;font-weight:500"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Agent is running — monitoring your inbox</div><span style="font-size:12px">Auto-replies to matching recruiter emails</span>`;
+    addActivity('Agent started', 'Monitoring Gmail for recruiter emails matching your target roles', '#1a9e5c');
+    showToast('Agent started!', 'success');
+  } else {
+    btn.className = 'agent-toggle start';
+    btn.classList.remove('agent-running');
+    label.textContent = 'Start agent';
+    statusText.textContent = 'Stopped';
+    banner.className = 'agent-banner stopped';
+    banner.innerHTML = `<div style="display:flex;align-items:center;gap:10px;font-weight:500"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Agent is stopped</div><span style="font-size:12px">Go to My profile and click Start agent</span>`;
+    addActivity('Agent stopped', 'Auto-reply paused', '#7a7a85');
+    showToast('Agent stopped');
+  }
+}
+
+// STATS
+function updateStats() {
+  document.getElementById('stat-sent').textContent = state.emailsSent;
+  document.getElementById('stat-scanned').textContent = state.emailsScanned;
+  document.getElementById('stat-tailored').textContent = state.resumesTailored;
+  document.getElementById('stat-apps').textContent = state.applications.length;
+}
+
+// ACTIVITY
+function addActivity(title, desc, color = '#5b4fff') {
+  state.activity.unshift({ title, desc, color, time: new Date().toLocaleTimeString() });
+  renderActivity();
+  saveStateLocal();
+}
+function renderActivity() {
+  const el = document.getElementById('activity-feed');
+  if (!state.activity.length) {
+    el.innerHTML = '<div style="padding:24px 0;text-align:center;color:var(--ink-3);font-size:13.5px">No activity yet.</div>';
+    return;
+  }
+  el.innerHTML = state.activity.slice(0, 15).map(a => `
+    <div class="activity-item">
+      <div class="activity-dot" style="background:${a.color}"></div>
+      <div class="activity-body">
+        <div class="activity-title">${a.title}</div>
+        <div class="activity-meta">${a.desc} · ${a.time}</div>
+      </div>
+    </div>`).join('');
+}
+
+// TAILOR RESUME
+async function tailorResume(silent = false) {
+  const p = getProfile();
+  const jd = document.getElementById('t-jd').value.trim();
+  const company = document.getElementById('t-company').value.trim();
+  const role = document.getElementById('t-role').value.trim();
+
+  if (!p.resume) { showToast('Add your resume in My profile first', 'error'); if(!silent) goto('profile','nav-profile'); return null; }
+  if (!jd) { showToast('Paste a job description first', 'error'); return null; }
+
+  document.getElementById('tailor-steps-card').style.display = 'block';
+  document.getElementById('tailor-output-card').style.display = 'none';
+  const steps = document.getElementById('tailor-steps');
+  steps.innerHTML = `
+    <div class="step-row"><div class="step-check loading"><span class="spinner spinner-dark" style="width:12px;height:12px;border-width:1.5px"></span></div>Analyzing JD keywords and skill gaps...</div>
+    <div class="step-row" style="opacity:0.4"><div class="step-check pending">2</div>Rewriting bullet points to match JD...</div>
+    <div class="step-row" style="opacity:0.4"><div class="step-check pending">3</div>Preserving format and structure...</div>`;
+
+  const prompt = `You are an expert resume coach. Tailor this resume to match the job description below.
+
+STRICT RULES:
+- DO NOT change section names, headers, or overall structure
+- DO rewrite bullet points to use exact keywords from the JD
+- DO prioritize experiences most relevant to this role
+- DO weave in missing keywords naturally into existing bullets
+- DO NOT invent experience or skills not in the original resume
+- Output ONLY the complete tailored resume text
+
+APPLICANT RESUME:
+${p.resume}
+
+JOB DESCRIPTION for: ${role || 'the role'} at ${company || 'the company'}
+${jd}
+
+Output the full tailored resume:`;
+
+  try {
+    const r = await fetch(API, { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:1800, messages:[{role:'user',content:prompt}] }) });
+    const d = await r.json();
+    const text = d.content?.filter(c=>c.type==='text').map(c=>c.text).join('') || '';
+
+    steps.innerHTML = `
+      <div class="step-row"><div class="step-check done">✓</div>Keywords and gaps analyzed</div>
+      <div class="step-row"><div class="step-check done">✓</div>Bullet points tailored to JD language</div>
+      <div class="step-row"><div class="step-check done">✓</div>Format and structure preserved</div>`;
+
+    document.getElementById('tailor-output-card').style.display = 'block';
+    document.getElementById('tailor-output').textContent = text;
+    state.tailoredResume = text;
+    state.resumesTailored++;
+    updateStats();
+    addActivity(`Resume tailored for ${role||'role'} at ${company||'company'}`, 'Keywords matched and bullet points updated', '#5b4fff');
+    saveStateLocal();
+    return text;
+  } catch(e) {
+    showToast('Error tailoring resume: ' + e.message, 'error');
+    steps.innerHTML = `<div class="step-row" style="color:var(--red)">Error: ${e.message}</div>`;
+    return null;
+  }
+}
+
+async function draftCoverEmail(company, role, jd) {
+  const p = getProfile();
+  const prompt = `Write a professional, warm, concise cover email for a job application.
+
+Applicant: ${p.firstName} ${p.lastName} · ${p.headline || 'professional'}
+${p.linkedin ? 'LinkedIn: ' + p.linkedin : ''}
+Company: ${company || 'the company'}
+Role: ${role || 'the position'}
+JD excerpt: ${(jd||'').slice(0, 500)}
+
+Rules:
+- 3-4 short paragraphs max
+- Subject line on first line as "Subject: ..."
+- Open: specific genuine interest in THIS company/role
+- Middle: 2-3 concrete skills/achievements matching the JD
+- Close: confident call to action, offer a quick chat
+- Tone: warm and professional, not stiff
+- Never start with "I am writing to express my interest"
+
+Write the full email (subject + body):`;
+
+  const r = await fetch(API, { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:600, messages:[{role:'user',content:prompt}] }) });
+  const d = await r.json();
+  return d.content?.filter(c=>c.type==='text').map(c=>c.text).join('') || '';
+}
+
+async function tailorAndDraftEmail() {
+  const tailored = await tailorResume(false);
+  if (!tailored) return;
+
+  const company = document.getElementById('t-company').value.trim();
+  const role = document.getElementById('t-role').value.trim();
+  const jd = document.getElementById('t-jd').value.trim();
+
+  document.getElementById('email-output-card').style.display = 'block';
+  document.getElementById('email-output').textContent = 'Drafting personalized cover email...';
+
+  const email = await draftCoverEmail(company, role, jd);
+  document.getElementById('email-output').textContent = email;
+  state.draftedEmail = email;
+  addActivity(`Cover email drafted for ${role||'role'} at ${company||'company'}`, 'Personalized based on JD and your profile', '#1a9e5c');
+}
+
+// SEND EMAIL
+function openSendModal() {
+  const emailText = state.draftedEmail || '';
+  const lines = emailText.split('\n');
+  const subjLine = lines.find(l => l.toLowerCase().startsWith('subject:')) || '';
+  const subj = subjLine.replace(/^subject:\s*/i, '');
+  const body = lines.filter(l => !l.toLowerCase().startsWith('subject:')).join('\n').trim();
+  document.getElementById('modal-subject').value = subj;
+  document.getElementById('modal-body').value = body;
+  document.getElementById('modal-to').value = '';
+  document.getElementById('modal-status').textContent = '';
+  document.getElementById('send-modal').classList.add('open');
+}
+function closeSendModal() { document.getElementById('send-modal').classList.remove('open'); }
+
+async function sendEmail() {
+  const to = document.getElementById('modal-to').value.trim();
+  const subj = document.getElementById('modal-subject').value.trim();
+  const body = document.getElementById('modal-body').value.trim();
+  if (!to || !subj || !body) { showToast('Fill in all fields', 'error'); return; }
+
+  document.getElementById('modal-status').innerHTML = '<span class="spinner"></span> Sending via Gmail...';
+  try {
+    const prompt = `Send this email using Gmail:
+To: ${to}
+Subject: ${subj}
+Body:
+${body}
+
+Use the Gmail tool to send this email now.`;
+    await fetch(API, { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:200,
+        messages:[{role:'user',content:prompt}],
+        mcp_servers:[{type:'url',url:GMAIL_MCP,name:'gmail'}] }) });
+    state.emailsSent++;
+    updateStats();
+    addActivity(`Email sent to ${to}`, subj, '#1a9e5c');
+    saveStateLocal();
+    showToast('Email sent!', 'success');
+    setTimeout(closeSendModal, 1500);
+  } catch(e) {
+    document.getElementById('modal-status').textContent = 'Error: ' + e.message;
+  }
+}
+
+// INBOX
+async function scanInbox() {
+  document.getElementById('inbox-list').innerHTML = `<div class="card" style="display:flex;align-items:center;gap:12px;font-size:13.5px;color:var(--ink-2)"><span class="spinner spinner-dark"></span> Scanning your Gmail for recruiter emails...</div>`;
+
+  const roles = state.roles.join(', ') || 'any';
+  try {
+    const r = await fetch(API, { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:1200,
+        messages:[{role:'user',content:`Search my Gmail inbox for recruiter, HR, talent acquisition, or hiring manager emails about job opportunities. 
+        
+Target roles I care about: ${roles}
+
+Return a JSON array only (no markdown, no backticks), each object with: id, from, fromEmail, subject, snippet, date, relevantRole (which target role it matches or "General opportunity").
+
+Find up to 8 recent recruiter emails. Return [] if none found.`}],
+        mcp_servers:[{type:'url',url:GMAIL_MCP,name:'gmail'}] }) });
+    const d = await r.json();
+    const text = d.content?.filter(c=>c.type==='text').map(c=>c.text).join('') || '[]';
+    let emails = [];
+    try { emails = JSON.parse(text.replace(/```json|```/g,'').trim()); } catch(e) {}
+
+    state.emailsScanned += emails.length;
+    updateStats();
+    addActivity(`Inbox scanned`, `Found ${emails.length} recruiter email(s)`, '#c47d0e');
+    saveStateLocal();
+
+    if (emails.length) {
+      document.getElementById('inbox-badge').style.display = 'inline';
+      document.getElementById('inbox-badge').textContent = emails.length;
+    }
+    renderInbox(emails);
+  } catch(e) {
+    document.getElementById('inbox-list').innerHTML = `<div class="card" style="color:var(--red);font-size:13.5px">Error scanning inbox: ${e.message}</div>`;
+  }
+}
+
+function renderInbox(emails) {
+  const el = document.getElementById('inbox-list');
+  if (!emails.length) {
+    el.innerHTML = '<div class="card" style="text-align:center;padding:40px;color:var(--ink-3);font-size:13.5px">No recruiter emails found matching your target roles.</div>';
+    return;
+  }
+  el.innerHTML = emails.map(e => `
+    <div class="card" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+        <div>
+          <div style="font-weight:500;font-size:14px">${e.from || 'Unknown'}</div>
+          <div style="font-size:12.5px;color:var(--ink-3)">${e.fromEmail || ''}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:11.5px;color:var(--ink-3)">${e.date || ''}</div>
+          <span class="badge badge-info" style="margin-top:4px">${e.relevantRole || 'General'}</span>
+        </div>
+      </div>
+      <div style="font-size:13.5px;font-weight:500;margin-bottom:4px">${e.subject || 'No subject'}</div>
+      <div style="font-size:12.5px;color:var(--ink-3);margin-bottom:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.snippet || ''}</div>
+      <button class="btn btn-primary btn-sm" onclick='handleReply(${JSON.stringify(e)})'>
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+        Draft reply + tailor resume
+      </button>
+    </div>`).join('');
+}
+
+async function handleReply(email) {
+  state.currentReply = email;
+  document.getElementById('reply-approval').style.display = 'block';
+  document.getElementById('reply-to-label').textContent = `Replying to: ${email.from} · "${email.subject}"`;
+  document.getElementById('reply-subject').value = `Re: ${email.subject}`;
+  document.getElementById('reply-body').value = 'Drafting your personalized reply...';
+  document.getElementById('reply-send-status').textContent = '';
+  document.getElementById('reply-approval').scrollIntoView({ behavior: 'smooth' });
+
+  const p = getProfile();
+  const prompt = `Write a professional reply to this recruiter email on behalf of ${p.firstName} ${p.lastName}.
+
+Recruiter: ${email.from}
+Subject: ${email.subject}
+Message preview: ${email.snippet}
+Role match: ${email.relevantRole}
+
+Applicant profile: ${p.headline}
+Resume highlights (first 500 chars): ${p.resume.slice(0,500)}
+
+Write a warm, professional reply that:
+1. Thanks them for reaching out specifically
+2. Confirms genuine interest in the ${email.relevantRole} opportunity  
+3. Highlights 2-3 relevant strengths matching this type of role
+4. Mentions resume is attached
+5. Proposes a quick intro call this week
+6. Signs off with name, phone, email, LinkedIn
+
+Only the email body (no subject):`;
+
+  const r = await fetch(API, { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:500, messages:[{role:'user',content:prompt}] }) });
+  const d = await r.json();
+  const text = d.content?.filter(c=>c.type==='text').map(c=>c.text).join('') || 'Error drafting reply.';
+  document.getElementById('reply-body').value = text;
+}
+
+function closeReply() {
+  document.getElementById('reply-approval').style.display = 'none';
+  state.currentReply = null;
+}
+
+async function sendReply() {
+  if (!state.currentReply) return;
+  const subj = document.getElementById('reply-subject').value;
+  const body = document.getElementById('reply-body').value;
+  const to = state.currentReply.fromEmail || state.currentReply.from;
+  document.getElementById('reply-send-status').innerHTML = '<span class="spinner spinner-dark"></span> Sending...';
+
+  try {
+    const prompt = `Send a Gmail reply email now.
+To: ${to}
+Subject: ${subj}
+Body:
+${body}`;
+    await fetch(API, { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:200,
+        messages:[{role:'user',content:prompt}],
+        mcp_servers:[{type:'url',url:GMAIL_MCP,name:'gmail'}] }) });
+    state.emailsSent++;
+    updateStats();
+    addActivity(`Replied to ${state.currentReply.from}`, subj, '#1a9e5c');
+    saveStateLocal();
+    showToast('Reply sent!', 'success');
+    setTimeout(closeReply, 1500);
+  } catch(e) {
+    document.getElementById('reply-send-status').textContent = 'Error: ' + e.message;
+  }
+}
+
+// APPLICATIONS
+function saveApplication() {
+  const company = document.getElementById('t-company').value.trim() || 'Unknown company';
+  const role = document.getElementById('t-role').value.trim() || 'Unknown role';
+  state.applications.unshift({
+    id: Date.now(), company, role,
+    date: new Date().toLocaleDateString(),
+    status: 'Applied',
+    resume: state.tailoredResume || ''
+  });
+  state.applications = state.applications;
+  updateStats();
+  saveStateLocal();
+  showToast(`Saved: ${role} at ${company}`, 'success');
+}
+
+function renderApplications() {
+  const el = document.getElementById('apps-list');
+  if (!state.applications.length) {
+    el.innerHTML = '<div style="text-align:center;padding:32px;color:var(--ink-3);font-size:13.5px">No applications yet. Tailor a resume and save it.</div>';
+    return;
+  }
+  const statuses = ['Applied','Screening','Interview','Offer','Rejected'];
+  el.innerHTML = state.applications.map(a => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border)">
+      <div>
+        <div style="font-weight:500;font-size:14px">${a.company}</div>
+        <div style="font-size:12.5px;color:var(--ink-3)">${a.role} · Applied ${a.date}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <select onchange="updateAppStatus(${a.id},this.value)" style="font-size:12.5px;padding:5px 8px;border-radius:6px;border:1px solid var(--border-strong);background:var(--surface);color:var(--ink);font-family:'Inter',sans-serif">
+          ${statuses.map(s=>`<option${s===a.status?' selected':''}>${s}</option>`).join('')}
+        </select>
+        <button class="btn btn-sm" style="color:var(--red);border-color:rgba(217,59,59,0.2)" onclick="removeApp(${a.id})">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        </button>
+      </div>
+    </div>`).join('') + `<div style="height:1px"></div>`;
+}
+
+function updateAppStatus(id, status) {
+  state.applications = state.applications.map(a => a.id === id ? {...a,status} : a);
+  saveStateLocal();
+}
+function removeApp(id) {
+  if (!confirm('Remove this application?')) return;
+  state.applications = state.applications.filter(a => a.id !== id);
+  updateStats();
+  saveStateLocal();
+  renderApplications();
+}
+
+// UTILITIES
+function copyText(id) {
+  navigator.clipboard.writeText(document.getElementById(id).textContent)
+    .then(() => showToast('Copied to clipboard!'));
+}
+
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// INIT
+loadState();
+</script>
+</body>
+</html>
