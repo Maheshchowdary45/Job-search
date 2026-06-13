@@ -750,7 +750,7 @@
           <div>
             <div style="font-size:18px;font-weight:600;font-family:'Space Grotesk',sans-serif">Recruiter inbox</div>
             <div style="font-size:12.5px;color:var(--ink-3);margin-top:2px">
-              Last 48 hours · <span id="inbox-sync-label">Not synced yet</span>
+              Last 7 days · all folders · <span id="inbox-sync-label">Not synced yet</span>
             </div>
           </div>
           <button class="btn btn-secondary btn-sm" onclick="scanInbox()" style="gap:6px">
@@ -1384,30 +1384,28 @@ Send it now and confirm it was sent.`;
 // INBOX
 function scanInbox() {
   const roles = state.roles.join(', ') || 'any relevant role';
-  const since = new Date(Date.now() - 48*60*60*1000).toLocaleDateString('en-US', {month:'short', day:'numeric'});
-  const prompt = `Search ALL Gmail categories for recruiter and hiring-related emails from the last 48 hours (since ${since}).
+  const prompt = `You have access to my Gmail. Run ALL of the following searches using your Gmail search tool, then compile the results.
 
-IMPORTANT — search these Gmail tabs/labels:
-- Primary inbox
-- Promotions tab
-- Updates tab
-- Social tab
-- Any other categories or labels
+SEARCH QUERIES TO RUN (run each one separately):
+1. newer_than:7d (opportunity OR "job opportunity" OR "exciting opportunity" OR "I came across" OR "your background" OR "your profile" OR "reach out" OR recruiter OR "talent acquisition" OR "hiring manager" OR interview OR "job opening" OR "open role" OR "open position")
+2. newer_than:7d in:promotions (opportunity OR role OR position OR interview OR recruiter OR hiring OR talent OR engineer OR developer OR analyst OR manager)
+3. newer_than:7d in:updates (opportunity OR interview OR recruiter OR hiring OR "job offer" OR role)
+4. newer_than:7d in:social (opportunity OR recruiter OR hiring OR role OR interview)
+5. newer_than:7d from:linkedin.com
+6. newer_than:7d from:indeed.com OR from:glassdoor.com OR from:lever.co OR from:greenhouse.io OR from:workday.com OR from:jobvite.com OR from:smartrecruiters.com
 
 I am targeting these roles: ${roles}
 
-Many recruiter emails have vague subjects like "Exciting opportunity", "I came across your profile", "Quick question", or no role title at all. You MUST open and read the full body of each suspicious email to check if it contains a job description, role details, or recruiter outreach.
+CRITICAL: Many recruiter emails have NO role title in the subject. Subject lines like "Quick question", "Wanted to connect", "Saw your profile", "Following up", or blank subjects can still be recruiter outreach. For any email that could be from a recruiter or about a job, OPEN AND READ THE FULL BODY to check.
 
-For every email that is recruiter/hiring-related, return a JSON array where each object has:
-{"id":"thread_id","from":"Sender Name","fromEmail":"sender@company.com","subject":"email subject line","snippet":"first 200 chars of body","date":"Jun 11","relevantRole":"extract the actual role title from the body — if not found use General opportunity","company":"company name if mentioned","keyDetails":"1-2 sentence summary of the opportunity from the body","body":"full email body text"}
+For EVERY email that contains a job opportunity, recruiter outreach, interview invite, or hiring-related message, include it in the JSON output:
+{"id":"thread_id","from":"Sender Name","fromEmail":"sender@company.com","subject":"subject line","snippet":"first 200 chars of body","date":"Jun 13","relevantRole":"role title extracted from the email body — if vague write General opportunity","company":"company name from body","keyDetails":"1-2 sentence summary of what the email is about","body":"full email body text"}
 
-Include: job opportunities, interview invites, recruiter outreach, hiring manager messages, LinkedIn InMail forwarded to Gmail, role proposals even if subject is vague.
-Exclude: automated job alert digests, newsletters, marketing blasts with no personal outreach.
+Deduplicate — if the same email appears in multiple searches, include it only once.
+Return up to 20 emails. Return [] only if absolutely nothing is found across all 6 searches.
+Return ONLY the JSON array, no markdown fences, no explanation.`;
 
-Return up to 15 emails. Return [] if none found.
-Return ONLY the JSON array, no markdown fences.`;
-
-  showPromptPanel('Check inbox — last 48 hours', prompt, (result) => {
+  showPromptPanel('Scan Gmail — last 7 days, all folders', prompt, (result) => {
     let emails = [];
     try { emails = JSON.parse(result.replace(/```json|```/g, '').trim()); } catch(e) {
       const m = result.match(/\[[\s\S]*\]/);
@@ -1417,7 +1415,7 @@ Return ONLY the JSON array, no markdown fences.`;
     state.emailsLastSynced = Date.now();
     state.emailsScanned += emails.length;
     updateStats();
-    addActivity('Inbox synced', `Found ${emails.length} recruiter email(s) in last 48 hours`, '#c47d0e');
+    addActivity('Inbox synced', `Found ${emails.length} recruiter email(s) in last 7 days`, '#c47d0e');
     saveStateLocal();
     if (emails.length) {
       document.getElementById('inbox-badge').style.display = 'inline';
