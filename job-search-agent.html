@@ -1385,18 +1385,26 @@ Send it now and confirm it was sent.`;
 function scanInbox() {
   const roles = state.roles.join(', ') || 'any relevant role';
   const since = new Date(Date.now() - 48*60*60*1000).toLocaleDateString('en-US', {month:'short', day:'numeric'});
-  const prompt = `Please search my Gmail inbox for recruiter, HR, talent acquisition, or hiring manager emails about job opportunities.
+  const prompt = `Search ALL Gmail categories for recruiter and hiring-related emails from the last 48 hours (since ${since}).
 
-TIME RANGE: last 48 hours only (since ${since})
+IMPORTANT — search these Gmail tabs/labels:
+- Primary inbox
+- Promotions tab
+- Updates tab
+- Social tab
+- Any other categories or labels
+
 I am targeting these roles: ${roles}
 
-For each matching email return a JSON array where each object has:
-{"id":"thread_id","from":"Sender Name","fromEmail":"sender@company.com","subject":"...","snippet":"first 150 chars of body","date":"Jun 11","relevantRole":"matching role or General opportunity","body":"full email body text"}
+Many recruiter emails have vague subjects like "Exciting opportunity", "I came across your profile", "Quick question", or no role title at all. You MUST open and read the full body of each suspicious email to check if it contains a job description, role details, or recruiter outreach.
 
-Focus on: job opportunities, interview invites, recruiter outreach, hiring manager contact.
-Exclude: newsletters, marketing, automated job alerts, promotional emails.
+For every email that is recruiter/hiring-related, return a JSON array where each object has:
+{"id":"thread_id","from":"Sender Name","fromEmail":"sender@company.com","subject":"email subject line","snippet":"first 200 chars of body","date":"Jun 11","relevantRole":"extract the actual role title from the body — if not found use General opportunity","company":"company name if mentioned","keyDetails":"1-2 sentence summary of the opportunity from the body","body":"full email body text"}
 
-Return up to 10 emails. Return [] if none found in the last 48 hours.
+Include: job opportunities, interview invites, recruiter outreach, hiring manager messages, LinkedIn InMail forwarded to Gmail, role proposals even if subject is vague.
+Exclude: automated job alert digests, newsletters, marketing blasts with no personal outreach.
+
+Return up to 15 emails. Return [] if none found.
 Return ONLY the JSON array, no markdown fences.`;
 
   showPromptPanel('Check inbox — last 48 hours', prompt, (result) => {
@@ -1439,20 +1447,21 @@ function renderInbox(emails) {
   el.innerHTML = emails.map(e => `
     <div class="card" style="margin-bottom:12px">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
-        <div>
-          <div style="font-weight:500;font-size:14px">${e.from || 'Unknown'}</div>
-          <div style="font-size:12.5px;color:var(--ink-3)">${e.fromEmail || ''}</div>
+        <div style="min-width:0;flex:1">
+          <div style="font-weight:600;font-size:14px">${e.from || 'Unknown'}${e.company ? ` <span style="font-weight:400;color:var(--ink-3)">· ${e.company}</span>` : ''}</div>
+          <div style="font-size:12px;color:var(--ink-3)">${e.fromEmail || ''}</div>
         </div>
-        <div style="text-align:right">
+        <div style="text-align:right;flex-shrink:0;margin-left:12px">
           <div style="font-size:11.5px;color:var(--ink-3)">${e.date || ''}</div>
-          <span class="badge badge-info" style="margin-top:4px">${e.relevantRole || 'General'}</span>
+          <span class="badge badge-info" style="margin-top:4px;display:inline-block">${e.relevantRole || 'General'}</span>
         </div>
       </div>
-      <div style="font-size:13.5px;font-weight:500;margin-bottom:4px">${e.subject || 'No subject'}</div>
-      <div style="font-size:12.5px;color:var(--ink-3);margin-bottom:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.snippet || ''}</div>
-      <button class="btn btn-primary btn-sm" onclick='handleReply(${JSON.stringify(e)})'>
+      <div style="font-size:13px;font-weight:500;margin-bottom:4px;color:var(--ink-2)">${e.subject || '(no subject)'}</div>
+      ${e.keyDetails ? `<div style="font-size:12.5px;color:var(--accent);margin-bottom:6px;font-weight:500">💼 ${e.keyDetails}</div>` : ''}
+      <div style="font-size:12.5px;color:var(--ink-3);margin-bottom:14px;line-height:1.5">${e.snippet || ''}</div>
+      <button class="btn btn-primary btn-sm" onclick='handleReply(${JSON.stringify(e).replace(/'/g,"&#39;")})'>
         <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
-        Draft reply + tailor resume
+        Draft reply
       </button>
     </div>`).join('');
 }
@@ -1465,7 +1474,7 @@ function handleReply(email) {
 
 Recruiter: ${email.from} <${email.fromEmail}>
 Subject: ${email.subject}
-Message: ${email.snippet}
+Message: ${email.body || email.snippet}
 Role match: ${email.relevantRole}
 
 My profile: ${p.headline}
