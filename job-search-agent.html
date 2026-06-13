@@ -463,6 +463,13 @@
   ::-webkit-scrollbar { width: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+
+  /* SETTINGS MODAL & AI LOADING */
+  .modal-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.48);z-index:200;align-items:center;justify-content:center; }
+  .modal-box { background:var(--surface);border-radius:var(--radius);padding:28px;width:480px;max-width:92vw;box-shadow:0 24px 80px rgba(0,0,0,0.2); }
+  .spinner { width:34px;height:34px;border:3px solid var(--accent-light);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .api-dot { width:8px;height:8px;border-radius:50%;background:var(--green);position:absolute;top:5px;right:5px;border:1.5px solid white; }
 </style>
 </head>
 <body>
@@ -519,6 +526,10 @@
     <div class="topbar">
       <div class="page-title" id="topbar-title">Dashboard</div>
       <div class="topbar-right">
+        <button class="btn btn-sm btn-secondary" onclick="openSettings()" title="Settings" style="position:relative;padding:7px 10px">
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span id="api-dot" style="display:none" class="api-dot"></span>
+        </button>
         <div class="avatar-chip" id="avatar-chip">
           <div class="avatar" id="topbar-avatar">?</div>
           <span id="topbar-name">Set up profile</span>
@@ -582,11 +593,11 @@
               <div class="card-title" style="color:var(--accent);margin-bottom:6px">How to use with Claude.ai</div>
               <div style="font-size:13px;color:var(--ink-2);line-height:1.7">
                 <b>1.</b> Fill in your profile and upload your resume (PDF works!)<br>
-                <b>2.</b> Click any AI button — a ready-made prompt will appear<br>
-                <b>3.</b> Copy the prompt and paste it into Claude chat<br>
-                <b>4.</b> Paste Claude's response back into the result box<br>
+                <b>2.</b> Add an Anthropic API key in <b>Settings ⚙️</b> (top right) for instant AI — no copy-paste<br>
+                <b>3.</b> Without API key: copy the generated prompt → paste in Claude chat → paste result back<br>
+                <b>4.</b> Gmail inbox scanning always needs Claude.ai chat (for Gmail access)<br>
                 <br>
-                <span style="color:var(--ink-3);font-size:12px">No API key needed — just a Claude.ai Pro/Team subscription</span>
+                <span style="color:var(--ink-3);font-size:12px">Free API key: console.anthropic.com · Claude subscription: claude.ai</span>
               </div>
             </div>
           </div>
@@ -874,6 +885,47 @@
 </div>
 
 <!-- TOAST -->
+<!-- SETTINGS MODAL -->
+<div id="settings-modal" class="modal-overlay" style="display:none">
+  <div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:600">Settings</div>
+      <button class="btn btn-sm btn-secondary" onclick="closeSettings()">✕</button>
+    </div>
+    <div class="section-divider">Anthropic API Key <span style="font-weight:400;color:var(--ink-3)">(optional)</span></div>
+    <div class="form-group" style="margin-top:14px">
+      <label>API Key</label>
+      <div style="display:flex;gap:8px">
+        <input type="password" id="settings-apikey" placeholder="sk-ant-api03-…" style="flex:1;font-family:monospace;font-size:13px;letter-spacing:0.03em">
+        <button class="btn btn-sm btn-secondary" onclick="toggleApiKeyVis()" id="apikey-toggle">Show</button>
+      </div>
+      <div style="font-size:12px;color:var(--ink-3);margin-top:8px;line-height:1.7">
+        <b>With key:</b> Role suggestions, resume tailoring, and reply drafting all run instantly — no copy-paste.<br>
+        <b>Without key:</b> Prompts are generated for you to paste into Claude.ai chat.<br>
+        <span style="color:var(--accent)">→ Get a free key at <b>console.anthropic.com</b></span>
+      </div>
+    </div>
+    <div style="margin-top:12px;padding:11px 14px;background:var(--accent-light);border-radius:var(--radius-sm);font-size:12.5px;color:var(--ink-2);line-height:1.6">
+      <b>Note:</b> Gmail inbox scanning always requires pasting a prompt into Claude.ai chat because it uses Claude's Gmail connection. The API key speeds up everything else.
+    </div>
+    <div class="btn-row" style="margin-top:20px">
+      <button class="btn btn-primary" onclick="saveSettings()">Save</button>
+      <button class="btn btn-secondary" onclick="testApiKey()">Test key</button>
+      <button class="btn btn-secondary" onclick="clearApiKey()" style="color:var(--red)">Remove key</button>
+    </div>
+    <div id="settings-status" style="margin-top:12px;font-size:13px;min-height:20px"></div>
+  </div>
+</div>
+
+<!-- AI LOADING OVERLAY -->
+<div id="ai-loading" class="modal-overlay" style="display:none">
+  <div class="modal-box" style="text-align:center;padding:44px 48px;max-width:300px">
+    <div class="spinner"></div>
+    <div id="ai-loading-title" style="margin-top:18px;font-weight:600;font-size:15px">Claude is thinking…</div>
+    <div style="font-size:12px;color:var(--ink-3);margin-top:5px">Direct API — no copy-paste needed</div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -926,6 +978,107 @@ function resumeBlock() {
   return `MY RESUME:\n${p.resume || '(no resume provided — add it in My Profile)'}`;
 }
 
+// SETTINGS
+function openSettings() {
+  document.getElementById('settings-modal').style.display = 'flex';
+  const key = localStorage.getItem('jobpilot_apikey') || '';
+  document.getElementById('settings-apikey').value = key;
+  document.getElementById('settings-status').textContent = '';
+}
+function closeSettings() {
+  document.getElementById('settings-modal').style.display = 'none';
+}
+function saveSettings() {
+  const key = document.getElementById('settings-apikey').value.trim();
+  if (key) {
+    localStorage.setItem('jobpilot_apikey', key);
+    document.getElementById('api-dot').style.display = 'block';
+    showToast('API key saved — AI features now work directly!', 'success');
+  } else {
+    localStorage.removeItem('jobpilot_apikey');
+    document.getElementById('api-dot').style.display = 'none';
+    showToast('API key removed', 'info');
+  }
+  closeSettings();
+}
+function clearApiKey() {
+  localStorage.removeItem('jobpilot_apikey');
+  document.getElementById('settings-apikey').value = '';
+  document.getElementById('api-dot').style.display = 'none';
+  document.getElementById('settings-status').innerHTML = '<span style="color:var(--ink-3)">Key removed</span>';
+}
+function toggleApiKeyVis() {
+  const inp = document.getElementById('settings-apikey');
+  const btn = document.getElementById('apikey-toggle');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  btn.textContent = inp.type === 'password' ? 'Show' : 'Hide';
+}
+async function testApiKey() {
+  const key = document.getElementById('settings-apikey').value.trim();
+  const el = document.getElementById('settings-status');
+  if (!key) { el.textContent = 'Enter a key first'; return; }
+  el.innerHTML = '<span style="color:var(--ink-3)">Testing…</span>';
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 5, messages: [{ role: 'user', content: 'Hi' }] })
+    });
+    if (res.ok) {
+      el.innerHTML = '<span style="color:var(--green)">✓ API key is valid! Save it to activate direct AI.</span>';
+    } else {
+      const err = await res.json().catch(() => ({}));
+      el.innerHTML = `<span style="color:var(--red)">✗ ${err.error?.message || 'Invalid key (status ' + res.status + ')'}</span>`;
+    }
+  } catch(e) {
+    el.innerHTML = `<span style="color:var(--red)">✗ Connection error: ${e.message}</span>`;
+  }
+}
+
+// AI CALL — tries API key first, falls back to prompt panel
+function showAiLoading(title) {
+  document.getElementById('ai-loading-title').textContent = title + '…';
+  document.getElementById('ai-loading').style.display = 'flex';
+}
+function hideAiLoading() {
+  document.getElementById('ai-loading').style.display = 'none';
+}
+async function aiCall(title, prompt, onResult) {
+  const apiKey = localStorage.getItem('jobpilot_apikey');
+  if (!apiKey) { showPromptPanel(title, prompt, onResult); return; }
+  showAiLoading(title);
+  try {
+    let content;
+    if (state.resumePDFBase64) {
+      content = [
+        { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: state.resumePDFBase64 } },
+        { type: 'text', text: prompt.replace(/\[Resume: PDF file[^\]]*\]\n?(?:RESUME TEXT \(fallback\):[^\n]*)?\n?/g, '[See attached PDF resume]\n') }
+      ];
+    } else {
+      content = prompt;
+    }
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({ model: 'claude-opus-4-8', max_tokens: 4096, messages: [{ role: 'user', content }] })
+    });
+    hideAiLoading();
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast('Claude API error: ' + (err.error?.message || res.status), 'error');
+      showPromptPanel(title, prompt, onResult);
+      return;
+    }
+    const data = await res.json();
+    showToast('Done!', 'success');
+    onResult(data.content[0].text);
+  } catch(e) {
+    hideAiLoading();
+    showToast('Connection error — using copy-paste fallback', 'error');
+    showPromptPanel(title, prompt, onResult);
+  }
+}
+
 // Load saved state
 function loadState() {
   const saved = localStorage.getItem('jobpilot_state');
@@ -973,6 +1126,7 @@ function loadState() {
   renderApplications();
   updateDashRoles();
   if (state.cachedEmails.length) { renderInbox(state.cachedEmails); updateSyncLabel(); }
+  if (localStorage.getItem('jobpilot_apikey')) document.getElementById('api-dot').style.display = 'block';
 }
 
 function saveStateLocal() {
@@ -1201,7 +1355,7 @@ Be specific — not just "Engineer" but "Backend Software Engineer", "ML Platfor
 
 Return ONLY the JSON array.`;
 
-  showPromptPanel('Suggest roles from my resume', prompt, (result) => {
+  aiCall('Suggest roles from my resume', prompt, (result) => {
     let suggestions = [];
     try { suggestions = JSON.parse(result.replace(/```json|```/g, '').trim()); } catch(e) {
       // Try to extract JSON if Claude added explanation
@@ -1253,7 +1407,7 @@ ${jd}
 
 Output the full tailored resume:`;
 
-  showPromptPanel('Tailor resume to job', prompt, (result) => {
+  aiCall('Tailor resume to job', prompt, (result) => {
     document.getElementById('tailor-steps-card').style.display = 'block';
     document.getElementById('tailor-steps').innerHTML = `
       <div class="step-row"><div class="step-check done">✓</div>Keywords and gaps analyzed</div>
@@ -1307,7 +1461,7 @@ Format your response EXACTLY like this:
 ===COVER EMAIL===
 [subject line and email body]`;
 
-  showPromptPanel('Tailor resume + draft cover email', prompt, (result) => {
+  aiCall('Tailor resume + draft cover email', prompt, (result) => {
     const resumePart = result.match(/===TAILORED RESUME===\s*([\s\S]*?)(?:===COVER EMAIL===|$)/i);
     const emailPart = result.match(/===COVER EMAIL===\s*([\s\S]*?)$/i);
 
@@ -1361,24 +1515,14 @@ function sendEmail() {
   const subj = document.getElementById('modal-subject').value.trim();
   const body = document.getElementById('modal-body').value.trim();
   if (!to || !subj || !body) { showToast('Fill in all fields', 'error'); return; }
-
-  const prompt = `Please send this email using your Gmail tool:
-
-To: ${to}
-Subject: ${subj}
-Body:
-${body}
-
-Send it now and confirm it was sent.`;
-
+  const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`;
+  window.open(gmailUrl, '_blank');
+  state.emailsSent++;
+  updateStats();
+  addActivity(`Email opened for ${to}`, subj, '#1a9e5c');
+  saveStateLocal();
+  showToast('Gmail opened — click Send to deliver!', 'success');
   closeSendModal();
-  showPromptPanel('Send email via Claude Gmail', prompt, (result) => {
-    state.emailsSent++;
-    updateStats();
-    addActivity(`Email sent to ${to}`, subj, '#1a9e5c');
-    saveStateLocal();
-    showToast('Email recorded as sent!', 'success');
-  });
 }
 
 // INBOX
@@ -1488,12 +1632,11 @@ Reply rules:
 
 Output ONLY the email body (no subject line):`;
 
-  showPromptPanel(`Draft reply to ${email.from}`, prompt, (result) => {
+  aiCall(`Draft reply to ${email.from}`, prompt, (result) => {
     document.getElementById('reply-approval').style.display = 'block';
     document.getElementById('reply-to-label').textContent = `Replying to: ${email.from} · "${email.subject}"`;
     document.getElementById('reply-subject').value = `Re: ${email.subject}`;
     document.getElementById('reply-body').value = result;
-    document.getElementById('reply-send-status').textContent = '';
     document.getElementById('reply-approval').scrollIntoView({ behavior: 'smooth' });
   });
 }
