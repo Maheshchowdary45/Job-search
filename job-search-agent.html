@@ -1109,7 +1109,7 @@ function updateDashRoles() {
 // AGENT
 function toggleAgent() {
   const p = getProfile();
-  if (!p.resume && !state.agentRunning) { showToast('Add your resume to profile first', 'error'); return; }
+  if (!p.resume && !state.resumePDFBase64 && !state.agentRunning) { showToast('Add your resume to profile first', 'error'); return; }
   if (!p.email && !state.agentRunning) { showToast('Add your email to profile first', 'error'); return; }
 
   state.agentRunning = !state.agentRunning;
