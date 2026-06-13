@@ -761,7 +761,7 @@
           <div>
             <div style="font-size:18px;font-weight:600;font-family:'Space Grotesk',sans-serif">Recruiter inbox</div>
             <div style="font-size:12.5px;color:var(--ink-3);margin-top:2px">
-              Last 7 days · all folders · <span id="inbox-sync-label">Not synced yet</span>
+              Last 7 days · all folders · <span id="inbox-sync-label">Not synced yet</span> · Sending from: <span id="inbox-from-email" style="color:var(--ink-2);font-weight:500">—</span>
             </div>
           </div>
           <button class="btn btn-secondary btn-sm" onclick="scanInbox()" style="gap:6px">
@@ -802,7 +802,7 @@
               </button>
               <button class="btn btn-secondary" onclick="closeReply()">Discard</button>
             </div>
-            <div style="margin-top:10px;font-size:12px;color:var(--ink-3)">Gmail will open in a new tab with this reply pre-filled. Just click Send.</div>
+            <div style="margin-top:10px;font-size:12px;color:var(--ink-3)">Gmail will open in a new tab with this reply pre-filled. Just click Send. · Sending from: <b id="reply-from-email" style="color:var(--ink-2)">your Gmail account</b></div>
           </div>
         </div>
       </div>
@@ -1152,6 +1152,8 @@ function goto(page, navId) {
   document.getElementById('topbar-title').textContent = titles[page] || page;
   if (page === 'applications') renderApplications();
   if (page === 'inbox') {
+    const userEmail = getProfile().email;
+    document.getElementById('inbox-from-email').textContent = userEmail || 'add email in My Profile';
     if (state.cachedEmails.length) { renderInbox(state.cachedEmails); updateSyncLabel(); }
     else setTimeout(scanInbox, 300);
   }
@@ -1515,7 +1517,9 @@ function sendEmail() {
   const subj = document.getElementById('modal-subject').value.trim();
   const body = document.getElementById('modal-body').value.trim();
   if (!to || !subj || !body) { showToast('Fill in all fields', 'error'); return; }
-  const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`;
+  const fromEmail = getProfile().email;
+  const authuser = fromEmail ? `&authuser=${encodeURIComponent(fromEmail)}` : '';
+  const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1${authuser}&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`;
   window.open(gmailUrl, '_blank');
   state.emailsSent++;
   updateStats();
@@ -1637,6 +1641,8 @@ Output ONLY the email body (no subject line):`;
     document.getElementById('reply-to-label').textContent = `Replying to: ${email.from} · "${email.subject}"`;
     document.getElementById('reply-subject').value = `Re: ${email.subject}`;
     document.getElementById('reply-body').value = result;
+    const fromEmail = p.email || 'your Gmail account';
+    document.getElementById('reply-from-email').textContent = fromEmail;
     document.getElementById('reply-approval').scrollIntoView({ behavior: 'smooth' });
   });
 }
@@ -1651,7 +1657,9 @@ function sendReply() {
   const subj = document.getElementById('reply-subject').value;
   const body = document.getElementById('reply-body').value;
   const to = state.currentReply.fromEmail || state.currentReply.from;
-  const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`;
+  const fromEmail = getProfile().email;
+  const authuser = fromEmail ? `&authuser=${encodeURIComponent(fromEmail)}` : '';
+  const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1${authuser}&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`;
   window.open(gmailUrl, '_blank');
   state.emailsSent++;
   updateStats();
