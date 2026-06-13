@@ -757,11 +757,11 @@
 
       <!-- INBOX -->
       <div class="page" id="inbox">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
           <div>
             <div style="font-size:18px;font-weight:600;font-family:'Space Grotesk',sans-serif">Recruiter inbox</div>
             <div style="font-size:12.5px;color:var(--ink-3);margin-top:2px">
-              Last 7 days · all folders · <span id="inbox-sync-label">Not synced yet</span> · Sending from: <span id="inbox-from-email" style="color:var(--ink-2);font-weight:500">—</span>
+              Last 7 days · all folders · <span id="inbox-sync-label">Not synced yet</span>
             </div>
           </div>
           <button class="btn btn-secondary btn-sm" onclick="scanInbox()" style="gap:6px">
@@ -769,6 +769,18 @@
             Refresh
           </button>
         </div>
+
+        <!-- Sending email field -->
+        <div class="card" style="margin-bottom:16px;padding:14px 16px;background:var(--surface-2);border:1.5px solid var(--border-strong)">
+          <div style="font-size:12px;font-weight:600;color:var(--ink-3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Your Gmail — replies &amp; emails send from this account</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="flex-shrink:0;color:var(--accent)"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            <input type="email" id="send-from-email" placeholder="yourname@gmail.com" style="flex:1;font-size:13.5px;font-weight:500" oninput="saveSendFromEmail()" onchange="saveSendFromEmail()">
+            <span id="send-from-saved" style="font-size:12px;color:var(--green);display:none">✓ Saved</span>
+          </div>
+          <div style="font-size:12px;color:var(--ink-3);margin-top:7px">Gmail will open with this account selected when you click "Send". Enter the exact Gmail address you want to send from.</div>
+        </div>
+
         <div style="font-size:12px;color:var(--ink-3);margin-bottom:16px">
           Paste Claude's response → emails appear here automatically. Replies open directly in Gmail.
         </div>
@@ -802,7 +814,7 @@
               </button>
               <button class="btn btn-secondary" onclick="closeReply()">Discard</button>
             </div>
-            <div style="margin-top:10px;font-size:12px;color:var(--ink-3)">Gmail will open in a new tab with this reply pre-filled. Just click Send. · Sending from: <b id="reply-from-email" style="color:var(--ink-2)">your Gmail account</b></div>
+            <div style="margin-top:10px;font-size:12px;color:var(--ink-3)">Gmail will open with this reply pre-filled — click Send. · Sending from: <b id="reply-from-email" style="color:var(--accent)">—</b></div>
           </div>
         </div>
       </div>
@@ -1152,8 +1164,7 @@ function goto(page, navId) {
   document.getElementById('topbar-title').textContent = titles[page] || page;
   if (page === 'applications') renderApplications();
   if (page === 'inbox') {
-    const userEmail = getProfile().email;
-    document.getElementById('inbox-from-email').textContent = userEmail || 'add email in My Profile';
+    loadSendFromEmail();
     if (state.cachedEmails.length) { renderInbox(state.cachedEmails); updateSyncLabel(); }
     else setTimeout(scanInbox, 300);
   }
@@ -1517,7 +1528,7 @@ function sendEmail() {
   const subj = document.getElementById('modal-subject').value.trim();
   const body = document.getElementById('modal-body').value.trim();
   if (!to || !subj || !body) { showToast('Fill in all fields', 'error'); return; }
-  const fromEmail = getProfile().email;
+  const fromEmail = getSendFromEmail();
   const authuser = fromEmail ? `&authuser=${encodeURIComponent(fromEmail)}` : '';
   const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1${authuser}&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`;
   window.open(gmailUrl, '_blank');
@@ -1530,6 +1541,27 @@ function sendEmail() {
 }
 
 // INBOX
+// SEND-FROM EMAIL
+function getSendFromEmail() {
+  return localStorage.getItem('jobpilot_send_email') || getProfile().email || '';
+}
+function saveSendFromEmail() {
+  const val = document.getElementById('send-from-email').value.trim();
+  if (val) {
+    localStorage.setItem('jobpilot_send_email', val);
+    const saved = document.getElementById('send-from-saved');
+    saved.style.display = 'inline';
+    setTimeout(() => { saved.style.display = 'none'; }, 2000);
+  } else {
+    localStorage.removeItem('jobpilot_send_email');
+  }
+}
+function loadSendFromEmail() {
+  const val = localStorage.getItem('jobpilot_send_email') || getProfile().email || '';
+  const el = document.getElementById('send-from-email');
+  if (el) el.value = val;
+}
+
 function scanInbox() {
   const roles = state.roles.join(', ') || 'any relevant role';
   const prompt = `You have access to my Gmail. Run ALL of the following searches using your Gmail search tool, then compile the results.
@@ -1641,8 +1673,7 @@ Output ONLY the email body (no subject line):`;
     document.getElementById('reply-to-label').textContent = `Replying to: ${email.from} · "${email.subject}"`;
     document.getElementById('reply-subject').value = `Re: ${email.subject}`;
     document.getElementById('reply-body').value = result;
-    const fromEmail = p.email || 'your Gmail account';
-    document.getElementById('reply-from-email').textContent = fromEmail;
+    document.getElementById('reply-from-email').textContent = getSendFromEmail() || 'set your Gmail in Inbox tab';
     document.getElementById('reply-approval').scrollIntoView({ behavior: 'smooth' });
   });
 }
@@ -1657,7 +1688,7 @@ function sendReply() {
   const subj = document.getElementById('reply-subject').value;
   const body = document.getElementById('reply-body').value;
   const to = state.currentReply.fromEmail || state.currentReply.from;
-  const fromEmail = getProfile().email;
+  const fromEmail = getSendFromEmail();
   const authuser = fromEmail ? `&authuser=${encodeURIComponent(fromEmail)}` : '';
   const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1${authuser}&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`;
   window.open(gmailUrl, '_blank');
