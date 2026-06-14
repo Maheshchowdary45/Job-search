@@ -761,13 +761,21 @@
           <div>
             <div style="font-size:18px;font-weight:600;font-family:'Space Grotesk',sans-serif">Recruiter inbox</div>
             <div style="font-size:12.5px;color:var(--ink-3);margin-top:2px">
-              Last 7 days · all folders · <span id="inbox-sync-label">Not synced yet</span>
+              All folders · <span id="inbox-sync-label">Not synced yet</span>
             </div>
           </div>
-          <button class="btn btn-secondary btn-sm" onclick="scanInbox()" style="gap:6px">
-            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-            Refresh
-          </button>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="inbox-days" onchange="state.cachedEmails=[];saveStateLocal()" style="font-size:13px;padding:6px 10px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink);cursor:pointer">
+              <option value="7">Last 7 days</option>
+              <option value="14" selected>Last 14 days</option>
+              <option value="30">Last 30 days</option>
+              <option value="60">Last 60 days</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" onclick="scanInbox()" style="gap:6px">
+              <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              Scan
+            </button>
+          </div>
         </div>
 
         <!-- Sending email field -->
@@ -1564,15 +1572,17 @@ function loadSendFromEmail() {
 
 function scanInbox() {
   const roles = state.roles.join(', ') || 'any relevant role';
+  const days = document.getElementById('inbox-days')?.value || '14';
+  const nd = `newer_than:${days}d`;
   const prompt = `You have access to my Gmail. Run ALL of the following searches using your Gmail search tool, then compile the results.
 
 SEARCH QUERIES TO RUN (run each one separately):
-1. newer_than:7d (opportunity OR "job opportunity" OR "exciting opportunity" OR "I came across" OR "your background" OR "your profile" OR "reach out" OR recruiter OR "talent acquisition" OR "hiring manager" OR interview OR "job opening" OR "open role" OR "open position")
-2. newer_than:7d in:promotions (opportunity OR role OR position OR interview OR recruiter OR hiring OR talent OR engineer OR developer OR analyst OR manager)
-3. newer_than:7d in:updates (opportunity OR interview OR recruiter OR hiring OR "job offer" OR role)
-4. newer_than:7d in:social (opportunity OR recruiter OR hiring OR role OR interview)
-5. newer_than:7d from:linkedin.com
-6. newer_than:7d from:indeed.com OR from:glassdoor.com OR from:lever.co OR from:greenhouse.io OR from:workday.com OR from:jobvite.com OR from:smartrecruiters.com
+1. ${nd} (opportunity OR "job opportunity" OR "exciting opportunity" OR "I came across" OR "your background" OR "your profile" OR "reach out" OR recruiter OR "talent acquisition" OR "hiring manager" OR interview OR "job opening" OR "open role" OR "open position")
+2. ${nd} in:promotions (opportunity OR role OR position OR interview OR recruiter OR hiring OR talent OR engineer OR developer OR analyst OR manager)
+3. ${nd} in:updates (opportunity OR interview OR recruiter OR hiring OR "job offer" OR role)
+4. ${nd} in:social (opportunity OR recruiter OR hiring OR role OR interview)
+5. ${nd} from:linkedin.com
+6. ${nd} from:indeed.com OR from:glassdoor.com OR from:lever.co OR from:greenhouse.io OR from:workday.com OR from:jobvite.com OR from:smartrecruiters.com
 
 I am targeting these roles: ${roles}
 
@@ -1595,7 +1605,7 @@ Return ONLY the JSON array, no markdown fences, no explanation.`;
     state.emailsLastSynced = Date.now();
     state.emailsScanned += emails.length;
     updateStats();
-    addActivity('Inbox synced', `Found ${emails.length} recruiter email(s) in last 7 days`, '#c47d0e');
+    addActivity('Inbox synced', `Found ${emails.length} recruiter email(s) in last ${days} days`, '#c47d0e');
     saveStateLocal();
     if (emails.length) {
       document.getElementById('inbox-badge').style.display = 'inline';
