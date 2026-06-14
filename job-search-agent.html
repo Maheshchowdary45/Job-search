@@ -1574,28 +1574,29 @@ function scanInbox() {
   const roles = state.roles.join(', ') || 'any relevant role';
   const days = document.getElementById('inbox-days')?.value || '14';
   const nd = `newer_than:${days}d`;
-  const prompt = `You have access to my Gmail. Run ALL of the following searches using your Gmail search tool, then compile the results.
-
-SEARCH QUERIES TO RUN (run each one separately):
-1. ${nd} (opportunity OR "job opportunity" OR "exciting opportunity" OR "I came across" OR "your background" OR "your profile" OR "reach out" OR recruiter OR "talent acquisition" OR "hiring manager" OR interview OR "job opening" OR "open role" OR "open position")
-2. ${nd} in:promotions (opportunity OR role OR position OR interview OR recruiter OR hiring OR talent OR engineer OR developer OR analyst OR manager)
-3. ${nd} in:updates (opportunity OR interview OR recruiter OR hiring OR "job offer" OR role)
-4. ${nd} in:social (opportunity OR recruiter OR hiring OR role OR interview)
-5. ${nd} from:linkedin.com
-6. ${nd} from:indeed.com OR from:glassdoor.com OR from:lever.co OR from:greenhouse.io OR from:workday.com OR from:jobvite.com OR from:smartrecruiters.com
+  const prompt = `You have access to my Gmail. Run ALL of the searches below using your Gmail search tool one by one, then compile every unique result.
 
 I am targeting these roles: ${roles}
 
-CRITICAL: Many recruiter emails have NO role title in the subject. Subject lines like "Quick question", "Wanted to connect", "Saw your profile", "Following up", or blank subjects can still be recruiter outreach. For any email that could be from a recruiter or about a job, OPEN AND READ THE FULL BODY to check.
+SEARCH QUERIES — run each separately:
+1. ${nd} subject:(job OR opening OR position OR opportunity OR hiring OR urgent OR role OR engineer OR developer OR scientist OR analyst OR manager)
+2. ${nd} ("IT recruiter" OR "talent acquisition" OR "staffing" OR "current opening" OR "job opening" OR "open position" OR "open role" OR "must have skills" OR "job description" OR "greetings" OR "our records show")
+3. ${nd} (opportunity OR recruiter OR "reach out" OR "came across your profile" OR "your background" OR interview OR "hiring manager")
+4. ${nd} in:promotions (job OR opening OR position OR opportunity OR recruiter OR hiring OR engineer OR developer)
+5. ${nd} in:updates (job OR opportunity OR recruiter OR interview OR hiring)
+6. ${nd} in:social (job OR opportunity OR recruiter OR hiring)
+7. ${nd} from:linkedin.com
+8. ${nd} from:indeed.com OR from:glassdoor.com OR from:lever.co OR from:greenhouse.io OR from:workday.com OR from:jobvite.com OR from:smartrecruiters.com OR from:dice.com OR from:ziprecruiter.com
 
-For EVERY email that contains a job opportunity, recruiter outreach, interview invite, or hiring-related message, include it in the JSON output:
-{"id":"thread_id","from":"Sender Name","fromEmail":"sender@company.com","subject":"subject line","snippet":"first 200 chars of body","date":"Jun 13","relevantRole":"role title extracted from the email body — if vague write General opportunity","company":"company name from body","keyDetails":"1-2 sentence summary of what the email is about","body":"full email body text"}
+IMPORTANT: Do NOT skip an email just because the subject looks vague ("Hi", "Following up", "Quick question", "Greetings", "Saw your profile"). OPEN AND READ THE FULL BODY of every match to determine if it is recruiter/hiring-related.
 
-Deduplicate — if the same email appears in multiple searches, include it only once.
-Return up to 20 emails. Return [] only if absolutely nothing is found across all 6 searches.
-Return ONLY the JSON array, no markdown fences, no explanation.`;
+For every recruiter or job-related email found across ALL searches, return a JSON array:
+{"id":"thread_id","from":"Sender Name","fromEmail":"sender@company.com","subject":"subject line","snippet":"first 200 chars of body","date":"Jun 13","relevantRole":"role title from body — use General opportunity if unclear","company":"company name","keyDetails":"1-2 sentence summary of the opportunity","body":"full email body text"}
 
-  showPromptPanel('Scan Gmail — last 7 days, all folders', prompt, (result) => {
+Deduplicate across searches. Return up to 25 emails.
+Return ONLY the JSON array — no markdown, no explanation.`;
+
+  showPromptPanel(`Scan Gmail — last ${days} days, all folders`, prompt, (result) => {
     let emails = [];
     try { emails = JSON.parse(result.replace(/```json|```/g, '').trim()); } catch(e) {
       const m = result.match(/\[[\s\S]*\]/);
