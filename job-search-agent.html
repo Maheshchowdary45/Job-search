@@ -1579,16 +1579,17 @@ function scanInbox() {
 I am targeting these roles: ${roles}
 
 SEARCH QUERIES — run each separately:
-1. ${nd} subject:(job OR opening OR position OR opportunity OR hiring OR urgent OR role OR engineer OR developer OR scientist OR analyst OR manager)
-2. ${nd} ("IT recruiter" OR "talent acquisition" OR "staffing" OR "current opening" OR "job opening" OR "open position" OR "open role" OR "must have skills" OR "job description" OR "greetings" OR "our records show")
-3. ${nd} (opportunity OR recruiter OR "reach out" OR "came across your profile" OR "your background" OR interview OR "hiring manager")
-4. ${nd} in:promotions (job OR opening OR position OR opportunity OR recruiter OR hiring OR engineer OR developer)
-5. ${nd} in:updates (job OR opportunity OR recruiter OR interview OR hiring)
-6. ${nd} in:social (job OR opportunity OR recruiter OR hiring)
+1. ${nd} subject:(job OR opening OR position OR opportunity OR hiring OR urgent OR role OR engineer OR developer OR scientist OR analyst OR manager OR offer OR contract OR fulltime OR remote OR hybrid OR onsite)
+2. ${nd} ("IT recruiter" OR "talent acquisition" OR "staffing" OR "current opening" OR "job opening" OR "open position" OR "open role" OR "must have skills" OR "job description" OR "our records show" OR "your experience" OR "your profile" OR "relevant to" OR "suitable candidate")
+3. ${nd} (opportunity OR recruiter OR "reach out" OR "came across" OR "your background" OR interview OR "hiring manager" OR "tech recruiter" OR "technical recruiter")
+4. ${nd} in:promotions (job OR opening OR position OR opportunity OR recruiter OR hiring OR engineer OR developer OR contract OR fulltime)
+5. ${nd} in:updates (job OR opportunity OR recruiter OR interview OR hiring OR opening)
+6. ${nd} in:social (job OR opportunity OR recruiter OR hiring OR opening)
 7. ${nd} from:linkedin.com
 8. ${nd} from:indeed.com OR from:glassdoor.com OR from:lever.co OR from:greenhouse.io OR from:workday.com OR from:jobvite.com OR from:smartrecruiters.com OR from:dice.com OR from:ziprecruiter.com
+9. ${nd} -from:me -category:forums -category:promotions -category:updates -category:social -category:personal newer_than:${days}d
 
-IMPORTANT: Do NOT skip an email just because the subject looks vague ("Hi", "Following up", "Quick question", "Greetings", "Saw your profile"). OPEN AND READ THE FULL BODY of every match to determine if it is recruiter/hiring-related.
+IMPORTANT — subjects do NOT matter. Recruiter emails arrive with ANY subject: "Hi", "Hello", "Greetings", "Quick question", "Saw your profile", "Following up", a job title, or no subject at all. For EVERY email returned by any search above, OPEN AND READ THE FULL BODY before deciding. If the body mentions a job, role, position, location, skills required, duration, or the sender identifies as a recruiter — include it.
 
 For every recruiter or job-related email found across ALL searches, return a JSON array:
 {"id":"thread_id","from":"Sender Name","fromEmail":"sender@company.com","subject":"subject line","snippet":"first 200 chars of body","date":"Jun 13","relevantRole":"role title from body — use General opportunity if unclear","company":"company name","keyDetails":"1-2 sentence summary of the opportunity","body":"full email body text"}
